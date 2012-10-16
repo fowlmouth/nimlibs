@@ -1,12 +1,14 @@
 
-proc `+`[A](some: ptr A, b: int): ptr A =
+proc `+`*[A](some: ptr A, b: int): ptr A =
   result = cast[ptr A](cast[int](some) + (b * sizeof(A)))
-proc inc[A](some: var ptr A, b = 1) =
+proc inc*[A](some: var ptr A, b = 1) =
   some = some + b
-proc `++`[A](some: var ptr A): ptr A =
+proc `++`*[A](some: var ptr A): ptr A =
   ## prefix inc
   result = some
   inc some, 1
+proc `[]`*[A](some: ptr A; idx: int): ptr A =
+  result = some + idx
 
 var s = "hello"
 var cs = addr s[0]
@@ -23,3 +25,11 @@ for i in 0..high(ints):
 cs = addr s[0]
 inc(cs)
 echo($ cs[])
+
+cs = addr s[0]
+var test = ""
+var i = 0
+while cs[i][] != '\0':
+  test.add(cs[i][])
+  inc i
+echo test
