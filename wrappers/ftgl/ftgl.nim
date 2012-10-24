@@ -15,6 +15,11 @@ type
   
   PLayout* = ptr TLayout
   TLayout* {.pure.} = object
+  
+  Bool32* {.size: sizeof(cint).} = enum
+    False32, True32
+
+converter toBool*(a: Bool32): bool = bool(a)
 
 {.push: cdecl.}
 proc destroy*(font: PFont) {.
@@ -33,7 +38,7 @@ proc createOutlineFont*(filename: cstring): PFont {.
 proc createTextureFont*(filename: cstring): PFont {.
   importc: "ftglCreateTextureFont", dynlib: LibName.}
 
-proc setFaceSize*(font: PFont; size, res: cuint): cint {.
+proc setFaceSize*(font: PFont; size, res: cuint): bool32 {.
   importc: "ftglSetFontFaceSize", dynlib: LibName.}
 
 proc getFaceSize*(font: PFont): cuint {.
