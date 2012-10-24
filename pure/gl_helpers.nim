@@ -47,17 +47,15 @@ template pushMatrixGL*(body: stmt): stmt =
   body
   glPopMatrix()
 
-proc glColorFV*(a: var TColor4f) {.inline.} =
-  glColor4FV(addr a.x)
-proc glColorFV*(a: var TColor3f) {.inline.} =
-  glColor3fv(addr a.x)
+proc glColorFV*(a: var TColor4f) {.inline.} = glColor4FV(addr a.x)
+proc glColorFV*(a: var TColor3f) {.inline.} = glColor3fv(addr a.x)
 proc glColorFV*(a: var TColor4b) {.inline.} = glColor4ubv(addr a.x)
 proc glColorFV*(a: var TColor3b) {.inline.} = glColor3ubv(addr a.x)
 
-
 proc glColor*(c: TColor4f) {.inline.} = glColor4f(c.x, c.y, c.z, c.w)
 proc glColor*(c: TColor4b) {.inline.} = glColor4ub(c.x, c.y, c.z, c.w)
-
+proc glColor*(c: TColor3f) {.inline.} = glColor3f(c.x, c.y, c.z)
+proc glColor*(c: TColor3b) {.inline.} = glColor3ub(c.x, c.y, c.z)
 
 proc glVertexFV*(a: var TVector3f) {.inline.}=
   glVertex3fv(addr a.x)
