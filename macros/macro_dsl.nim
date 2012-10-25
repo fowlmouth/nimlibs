@@ -21,6 +21,10 @@ proc newNilLit*(): PNimrodNode {.compileTime.} =
   ## New nil literal shortcut
   result = newNimNode(nnkNilLit)
 
+proc isEmpty*(someNode: PNimrodNode): bool {.
+  compileTime, inline.} = someNode.kind == nnkEmpty
+  ## Check if the node is empty. Try to keep up. :^)
+
 proc newProc*(name: PNimrodNode; params: varargs[PNimrodNode] = [];  
     body: PNimrodNode = newStmtList()): PNimrodNode {.compileTime.} =
   ## shortcut for creating a new proc
@@ -29,10 +33,25 @@ proc newProc*(name: PNimrodNode; params: varargs[PNimrodNode] = [];
     newEmptyNode(),
     newEmptyNode(),
     newNimNode(nnkFormalParams).und(params),
-    newEmptyNode(),
+    newEmptyNode(),  ## pragmas
     newEmptyNode(),
     body)
 
+
+proc procName*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
+  assert someProc.kind in {nnkProcDef, nnkMethodDef}
+  result = someProc[0]
+
+proc pragma*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
+  ## Get the pragma of a proc type
+  ## These will be expanded
+  assert someProc.kind in {nnkProcDef, nnkMethodDef}
+  result = someProc[4]
+proc `pragma=`*(someProc: PNimrodNode; val: PNimrodNode){.compileTime.}=
+  ## Set the pragma of a proc type
+  someProc.expectKind nnkProcDef
+  assert val.kind in {nnkEmpty, nnkPragma}
+  someProc[4] = val
 
 proc `$`*(a: PNimrodNode): string {.compileTime.} =
   ## Get the string of an identifier node
@@ -71,6 +90,7 @@ proc dot*(a, b: PNimrodNode): PNimrodNode {.compileTime, inline.} =
 proc `<-`*(a, b: PNimrodNode): PNimrodNode {.compiletime, inline.} =
   ## New assignment node
   ## a <- b  is equivalent to `a = b`  
+  ## I might change this back to `:=`  
   return newNimNode(nnkAsgn).und(a, b)
 
 proc basename*(a: PNimrodNode): PNimrodNode {.compiletime.} =
