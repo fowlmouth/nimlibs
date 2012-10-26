@@ -1,15 +1,19 @@
+when defined(Linux):
+  const LibName = "libode.so.1"
+else:
+  {.error: "Your platform has not been accounted for.".}
+
 import importc_block
-const LibName = "libode.so.1"
 
 ## as of this moment, debian has a separate package for ODE built in single
-## precision 
+## precision, otherwise you should know how you compiled ODE. Or you could
+## just try both configs to find out (hint: one of them wont work)
 when defined(OdeUseFloat):
   type dReal* = float32
 elif defined(OdeUseDouble):
   type dReal* = float64
 else:
-  type dReal* = float ##biggest float
-
+  type dReal* = float ##biggest 
 
 type
   PWorld* = ptr TWorld
@@ -19,6 +23,7 @@ type
   PJoint* = ptr TJoint
   PJointGroup* = ptr TJointGroup
   
+  PMass* = ptr TMass
   TMass* {.pure.} = object  
     mass*: dReal
     c*: TVector3
@@ -89,7 +94,7 @@ type
   THeightfieldData* {.pure, final.} = object
   PHeightfieldDataID* = ptr THeightfieldData
   
-  dHeightfieldGetHeight* = proc (p_user_data: pointer; x: cint; z: cint): dReal
+  dHeightfieldGetHeight* = proc(p_user_data: pointer; x, z: cint): dReal{.cdecl.}
     ##  Used by the callback heightfield data type to sample a height for a
     ##  given cell position.
 
@@ -135,91 +140,28 @@ importCizzle "dGeom":
     ##Get the body associated with a placeable geom.
     ##  @param geom the geom to query.
 
-
-#*
-#  @brief Set the position vector of a placeable geom.
-# 
-#  If the geom is attached to a body, the body's position will also be changed.
-#  Calling this function on a non-placeable geom results in a runtime error in
-#  the debug build of ODE.
-# 
-#  @param geom the geom to set.
-#  @param x the new X coordinate.
-#  @param y the new Y coordinate.
-#  @param z the new Z coordinate.
-#  @sa dBodySetPosition
-#  @ingroup collide
-# 
-proc dGeomSetPosition*(geom: PGeom; x: dReal; y: dReal; z: dReal) {.importc.}
-#*
-#  @brief Set the rotation matrix of a placeable geom.
-# 
-#  If the geom is attached to a body, the body's rotation will also be changed.
-#  Calling this function on a non-placeable geom results in a runtime error in
-#  the debug build of ODE.
-# 
-#  @param geom the geom to set.
-#  @param R the new rotation matrix.
-#  @sa dBodySetRotation
-#  @ingroup collide
-# 
-proc dGeomSetRotation*(geom: PGeom; R: TMatrix3) {.importc.}
-#*
-#  @brief Set the rotation of a placeable geom.
-# 
-#  If the geom is attached to a body, the body's rotation will also be changed.
-# 
-#  Calling this function on a non-placeable geom results in a runtime error in
-#  the debug build of ODE.
-# 
-#  @param geom the geom to set.
-#  @param Q the new rotation.
-#  @sa dBodySetQuaternion
-#  @ingroup collide
-# 
-proc dGeomSetQuaternion*(geom: PGeom; Q: TQuaternion) {.importc.}
-#*
-#  @brief Get the position vector of a placeable geom.
-# 
-#  If the geom is attached to a body, the body's position will be returned.
-# 
-#  Calling this function on a non-placeable geom results in a runtime error in
-#  the debug build of ODE.
-# 
-#  @param geom the geom to query.
-#  @returns A pointer to the geom's position vector.
-#  @remarks The returned value is a pointer to the geom's internal
-#           data structure. It is valid until any changes are made
-#           to the geom.
-#  @sa dBodyGetPosition
-#  @ingroup collide
-# 
-proc dGeomGetPosition*(geom: PGeom): ptr dReal {.importc.}
-#*
-#  @brief Copy the position of a geom into a vector.
-#  @ingroup collide
-#  @param geom  the geom to query
-#  @param pos   a copy of the geom position
-#  @sa dGeomGetPosition
-# 
-proc dGeomCopyPosition*(geom: PGeom; pos: TVector3) {.importc.}
-#*
-#  @brief Get the rotation matrix of a placeable geom.
-# 
-#  If the geom is attached to a body, the body's rotation will be returned.
-# 
-#  Calling this function on a non-placeable geom results in a runtime error in
-#  the debug build of ODE.
-# 
-#  @param geom the geom to query.
-#  @returns A pointer to the geom's rotation matrix.
-#  @remarks The returned value is a pointer to the geom's internal
-#           data structure. It is valid until any changes are made
-#           to the geom.
-#  @sa dBodyGetRotation
-#  @ingroup collide
-# 
-proc dGeomGetRotation*(geom: PGeom): ptr dReal {.importc.}
+  proc SetPosition*(geom: PGeom; x, y, z: dReal)
+    ## Set the position vector of a placeable geom.
+  
+  proc SetRotation*(geom: PGeom; R: TMatrix3) 
+    ## Set the rotation matrix of a placeable geom.
+  proc SetQuaternion*(geom: PGeom; Q: TQuaternion) 
+    ##  Set the rotation of a placeable geom.
+  proc GetPosition*(geom: PGeom): ptr TVector3 
+    ## Get the position vector of a placeable geom.
+  
+  proc CopyPosition*(geom: PGeom; pos: TVector3)
+    
+  #  @brief Copy the position of a geom into a vector.
+  #  @ingroup collide
+  #  @param geom  the geom to query
+  #  @param pos   a copy of the geom position
+  #  @sa dGeomGetPosition
+  
+  
+  proc GetRotation*(geom: PGeom): ptr TMatrix3 ##dReal  \
+    ## Get the rotation matrix of a placeable geom. \
+    ## returns A pointer to the geom's rotation matrix. (was ptr dreal)
 #*
 #  @brief Get the rotation matrix of a placeable geom.
 # 
@@ -248,38 +190,15 @@ proc dGeomCopyRotation*(geom: PGeom; R: TMatrix3) {.importc.}
 #  @ingroup collide
 # 
 proc dGeomGetQuaternion*(geom: PGeom; result: TQuaternion) {.importc.}
-#*
-#  @brief Return the axis-aligned bounding box.
-# 
-#  Return in aabb an axis aligned bounding box that surrounds the given geom.
-#  The aabb array has elements (minx, maxx, miny, maxy, minz, maxz). If the
-#  geom is a space, a bounding box that surrounds all contained geoms is
-#  returned.
-# 
-#  This function may return a pre-computed cached bounding box, if it can
-#  determine that the geom has not moved since the last time the bounding
-#  box was computed.
-# 
-#  @param geom the geom to query
-#  @param aabb the returned bounding box
-#  @ingroup collide
-# 
-proc dGeomGetAABB*(geom: PGeom; aabb: array[0..6 - 1, dReal]) {.importc.}
-#*
-#  @brief Determing if a geom is a space.
-#  @param geom the geom to query
-#  @returns Non-zero if the geom is a space, zero otherwise.
-#  @ingroup collide
-# 
-proc dGeomIsSpace*(geom: PGeom): cint {.importc.}
-#*
-#  @brief Query for the space containing a particular geom.
-#  @param geom the geom to query
-#  @returns The space that contains the geom, or NULL if the geom is
-#           not contained by a space.
-#  @ingroup collide
-# 
-proc dGeomGetSpace*(a2: PGeom): PSpace {.importc.}
+
+importcizzle "dGeom":
+  proc IsSpace*(geom: PGeom): cint 
+    ## returns non-zero if the geom is a space, zero otherwise.
+  proc GetAABB*(geom: PGeom; aabb: array[0..6 - 1, dReal])
+    ## Return the axis-aligned bounding box.
+  proc GetSpace*(a2: PGeom): PSpace
+    ## Query for the space containing a particular geom.
+
 #*
 #  @brief Given a geom, this returns its class.
 # 
@@ -626,8 +545,7 @@ proc dGeomGetOffsetQuaternion*(geom: PGeom; result: TQuaternion) {.importc.}
 proc dCollide*(o1, o2: PGeom; flags: cint; contact: ptr dContactGeom; 
                 skip: cint): cint {.importc.}
 #*
-#  @brief Determines which pairs of geoms in a space may potentially intersect,
-#  and calls the callback function for each candidate pair.
+#  @brief 
 # 
 #  @param space The space to test.
 # 
@@ -652,50 +570,20 @@ proc dCollide*(o1, o2: PGeom; flags: cint; contact: ptr dContactGeom;
 #  @sa dSpaceCollide2
 #  @ingroup collide
 # 
-proc dSpaceCollide*(space: PSpace; data: pointer; 
-                    callback: ptr TNearCallback){.importc.}
-#*
-#  @brief Determines which geoms from one space may potentially intersect with 
-#  geoms from another space, and calls the callback function for each candidate 
-#  pair. 
-# 
-#  @param space1 The first space to test.
-# 
-#  @param space2 The second space to test.
-# 
-#  @param data Passed from dSpaceCollide directly to the callback
-#  function. Its meaning is user defined. The o1 and o2 arguments are the
-#  geoms that may be near each other.
-# 
-#  @param callback A callback function is of type @ref TNearCallback.
-# 
-#  @remarks This function can also test a single non-space geom against a 
-#  space. This function is useful when there is a collision hierarchy, i.e. 
-#  when there are spaces that contain other spaces.
-# 
-#  @remarks Other spaces that are contained within the colliding space are
-#  not treated specially, i.e. they are not recursed into. The callback
-#  function may be passed these contained spaces as one or both geom
-#  arguments.
-# 
-#  @remarks Sublevel value of space affects how the spaces are iterated.
-#  Both spaces are recursed only if their sublevels match. Otherwise, only
-#  the space with greater sublevel is recursed and the one with lesser sublevel
-#  is used as a geom itself.
-# 
-#  @remarks dSpaceCollide2() is guaranteed to pass all intersecting geom
-#  pairs to the callback function, but may also pass close but
-#  non-intersecting pairs. The number of these calls depends on the
-#  internal algorithms used by the space. Thus you should not expect
-#  that dCollide will return contacts for every pair passed to the
-#  callback.
-# 
-#  @sa dSpaceCollide
-#  @sa dSpaceSetSublevel
-#  @ingroup collide
-# 
-proc dSpaceCollide2*(space1: PGeom; space2: PGeom; data: pointer; 
-                     callback: ptr TNearCallback) {.importc.}
+
+importcizzle "dSpace":
+  proc Collide*(space: PSpace; data: pointer; 
+                 callback: TNearCallback)
+    ## Determines which pairs of geoms in a space may potentially intersect,
+    ## and calls the callback function for each candidate pair.
+
+proc Collide*(space1: PGeom; space2: PGeom; data: pointer; 
+                     callback: ptr TNearCallback) {.importc: "dSpaceCollide2".}
+  ## Determines which geoms from one space may potentially intersect with 
+  ## geoms from another space, and calls the callback function for each candidate 
+  ## pair. 
+
+
 # ************************************************************************ 
 # standard classes 
 # the maximum number of user classes that are supported 
@@ -738,40 +626,18 @@ const
 #  @ingroup collide_sphere
 # 
 proc CreateSphere*(space: PSpace; radius: dReal): PGeom {.importc: "dCreateSphere".}
-#*
-#  @brief Set the radius of a sphere geom.
-# 
-#  @param sphere  the sphere to set.
-#  @param radius  the new radius.
-# 
-#  @sa dGeomSphereGetRadius
-#  @ingroup collide_sphere
-# 
-proc dGeomSphereSetRadius*(sphere: PGeom; radius: dReal) {.importc.}
-#*
-#  @brief Retrieves the radius of a sphere geom.
-# 
-#  @param sphere  the sphere to query.
-# 
-#  @sa dGeomSphereSetRadius
-#  @ingroup collide_sphere
-# 
-proc dGeomSphereGetRadius*(sphere: PGeom): dReal {.importc.}
-#*
-#  @brief Calculate the depth of the a given point within a sphere.
-# 
-#  @param sphere  the sphere to query.
-#  @param x       the X coordinate of the point.
-#  @param y       the Y coordinate of the point.
-#  @param z       the Z coordinate of the point.
-# 
-#  @returns The depth of the point. Points inside the sphere will have a 
-#  positive depth, points outside it will have a negative depth, and points
-#  on the surface will have a depth of zero.
-# 
-#  @ingroup collide_sphere
-# 
+
+
+importcizzle "dGeomSphere":
+  proc SetRadius*(sphere: PGeom; radius: dReal)
+    ##  Set the radius of a sphere geom.
+  
+  proc GetRadius*(sphere: PGeom): dReal
+    ## Retrieves the radius of a sphere geom.
+
 proc dGeomSpherePointDepth*(sphere: PGeom; x, y, z: dReal): dReal{.importc.}
+  ## Calculate the depth of the a given point within a sphere.
+
 #--> Convex Functions
 proc dCreateConvex*(space: PSpace; planes: ptr dReal; planecount: cuint; 
                      points: ptr dReal; pointcount: cuint; 
@@ -814,7 +680,7 @@ proc dCreateBox*(space: PSpace; lx, ly, lz: dReal): PGeom {.importc.}
 # 
 proc dGeomBoxSetLengths*(box: PGeom; lx, ly, lz: dReal) {.importc.}
 #*
-#  @brief Get the side lengths of a box.
+#  @brief 
 # 
 #  @param box     the box to query
 #  @param result  the returned side lengths
@@ -822,20 +688,13 @@ proc dGeomBoxSetLengths*(box: PGeom; lx, ly, lz: dReal) {.importc.}
 #  @sa dGeomBoxSetLengths
 #  @ingroup collide_box
 # 
-proc dGeomBoxGetLengths*(box: PGeom; result: TVector3){.importc.}
-#*
-#  @brief Return the depth of a point in a box.
-#  
-#  @param box  the box to query
-#  @param x    the X coordinate of the point to test.
-#  @param y    the Y coordinate of the point to test.
-#  @param z    the Z coordinate of the point to test.
-# 
-#  @returns The depth of the point. Points inside the box will have a 
-#  positive depth, points outside it will have a negative depth, and points
-#  on the surface will have a depth of zero.
-# 
-proc dGeomBoxPointDepth*(box: PGeom; x, y, z: dReal): dReal {.importc.}
+importcizzle "dGeom":
+  proc BoxGetLengths*(box: PGeom; result: TVector3)
+    ## Get the side lengths of a box.
+  proc BoxPointDepth*(box: PGeom; x, y, z: dReal): dReal 
+    ## Return the depth of a point in a box.
+
+
 proc CreatePlane*(space: PSpace; a, b, c, d: dReal): PGeom {.importc: "dCreatePlane".}
 proc dGeomPlaneSetParams*(plane: PGeom; a, b, c, d: dReal){.importc.}
 proc dGeomPlaneGetParams*(plane: PGeom; result: TVector4) {.importc.}
@@ -1447,54 +1306,54 @@ importCizzle "dWorld":
   #  @param stepsize The number of seconds that the simulation has to advance.
   # 
   proc Step*(a2: PWorld; stepsize: dReal)
-#*
-#  @brief Converts an impulse to a force.
-#  @ingroup world
-#  @remarks
-#  If you want to apply a linear or angular impulse to a rigid body,
-#  instead of a force or a torque, then you can use this function to convert
-#  the desired impulse into a force/torque vector before calling the
-#  BodyAdd... function.
-#  The current algorithm simply scales the impulse by 1/stepsize,
-#  where stepsize is the step size for the next step that will be taken.
-#  This function is given a PWorld because, in the future, the force
-#  computation may depend on integrator parameters that are set as
-#  properties of the world.
-# 
-proc dWorldImpulseToForce*(a2: PWorld; stepsize: dReal; ix: dReal; 
-                           iy: dReal; iz: dReal; force: TVector3){.importc.}
-#*
-#  @brief Step the world.
-#  @ingroup world
-#  @remarks
-#  This uses an iterative method that takes time on the order of m*N
-#  and memory on the order of m, where m is the total number of constraint
-#  rows N is the number of iterations.
-#  For large systems this is a lot faster than dWorldStep(),
-#  but it is less accurate.
-#  @remarks
-#  QuickStep is great for stacks of objects especially when the
-#  auto-disable feature is used as well.
-#  However, it has poor accuracy for near-singular systems.
-#  Near-singular systems can occur when using high-friction contacts, motors,
-#  or certain articulated structures. For example, a robot with multiple legs
-#  sitting on the ground may be near-singular.
-#  @remarks
-#  There are ways to help overcome QuickStep's inaccuracy problems:
-#  \li Increase CFM.
-#  \li Reduce the number of contacts in your system (e.g. use the minimum
-#      number of contacts for the feet of a robot or creature).
-#  \li Don't use excessive friction in the contacts.
-#  \li Use contact slip if appropriate
-#  \li Avoid kinematic loops (however, kinematic loops are inevitable in
-#      legged creatures).
-#  \li Don't use excessive motor strength.
-#  \liUse force-based motors instead of velocity-based motors.
-# 
-#  Increasing the number of QuickStep iterations may help a little bit, but
-#  it is not going to help much if your system is really near singular.
-# 
-proc dWorldQuickStep*(w: PWorld; stepsize: dReal){.importc.}
+  #*
+  #  @brief Converts an impulse to a force.
+  #  @ingroup world
+  #  @remarks
+  #  If you want to apply a linear or angular impulse to a rigid body,
+  #  instead of a force or a torque, then you can use this function to convert
+  #  the desired impulse into a force/torque vector before calling the
+  #  BodyAdd... function.
+  #  The current algorithm simply scales the impulse by 1/stepsize,
+  #  where stepsize is the step size for the next step that will be taken.
+  #  This function is given a PWorld because, in the future, the force
+  #  computation may depend on integrator parameters that are set as
+  #  properties of the world.
+  # 
+  proc ImpulseToForce*(a2: PWorld; stepsize: dReal; ix, iy, iz: dReal; 
+                        force: TVector3)
+  #*
+  #  @brief Step the world.
+  #  @ingroup world
+  #  @remarks
+  #  This uses an iterative method that takes time on the order of m*N
+  #  and memory on the order of m, where m is the total number of constraint
+  #  rows N is the number of iterations.
+  #  For large systems this is a lot faster than dWorldStep(),
+  #  but it is less accurate.
+  #  @remarks
+  #  QuickStep is great for stacks of objects especially when the
+  #  auto-disable feature is used as well.
+  #  However, it has poor accuracy for near-singular systems.
+  #  Near-singular systems can occur when using high-friction contacts, motors,
+  #  or certain articulated structures. For example, a robot with multiple legs
+  #  sitting on the ground may be near-singular.
+  #  @remarks
+  #  There are ways to help overcome QuickStep's inaccuracy problems:
+  #  \li Increase CFM.
+  #  \li Reduce the number of contacts in your system (e.g. use the minimum
+  #      number of contacts for the feet of a robot or creature).
+  #  \li Don't use excessive friction in the contacts.
+  #  \li Use contact slip if appropriate
+  #  \li Avoid kinematic loops (however, kinematic loops are inevitable in
+  #      legged creatures).
+  #  \li Don't use excessive motor strength.
+  #  \liUse force-based motors instead of velocity-based motors.
+  # 
+  #  Increasing the number of QuickStep iterations may help a little bit, but
+  #  it is not going to help much if your system is really near singular.
+  # 
+  proc QuickStep*(w: PWorld; stepsize: dReal)
 #*
 #  @brief Set the number of iterations that the QuickStep method performs per
 #         step.
@@ -1966,64 +1825,29 @@ importcizzle "dBody":
     ## After setting, the outcome of the simulation is undefined
     ## if the new configuration is inconsistent with the joints/constraints
     ## that are present.
-  
-#*
-#  @brief Set the orientation of a body.
-#  @ingroup bodies
-#  @remarks
-#  After setting, the outcome of the simulation is undefined
-#  if the new configuration is inconsistent with the joints/constraints
-#  that are present.
-# 
-proc dBodySetQuaternion*(a2: PBody; q: TQuaternion){.importc.}
-#*
-#  @brief Set the linear velocity of a body.
-#  @ingroup bodies
-# 
-proc dBodySetLinearVel*(a2: PBody; x: dReal; y: dReal; z: dReal){.importc.}
-#*
-#  @brief Set the angular velocity of a body.
-#  @ingroup bodies
-# 
-proc dBodySetAngularVel*(a2: PBody; x: dReal; y: dReal; z: dReal){.importc.}
-#*
-#  @brief Get the position of a body.
-#  @ingroup bodies
-#  @remarks
-#  When getting, the returned values are pointers to internal data structures,
-#  so the vectors are valid until any changes are made to the rigid body
-#  system structure.
-#  @sa dBodyCopyPosition
-# 
-proc dBodyGetPosition*(a2: PBody): ptr dReal{.importc.}
-#*
-#  @brief Copy the position of a body into a vector.
-#  @ingroup bodies
-#  @param body  the body to query
-#  @param pos   a copy of the body position
-#  @sa dBodyGetPosition
-# 
-proc dBodyCopyPosition*(body: PBody; pos: TVector3){.importc.}
-#*
-#  @brief Get the rotation of a body.
-#  @ingroup bodies
-#  @return pointer to a 4x3 rotation matrix.
-# 
-proc dBodyGetRotation*(a2: PBody): ptr dReal{.importc.}
-#*
-#  @brief Copy the rotation of a body.
-#  @ingroup bodies
-#  @param body   the body to query
-#  @param R      a copy of the rotation matrix
-#  @sa dBodyGetRotation
-# 
-proc dBodyCopyRotation*(a2: PBody; R: TMatrix3){.importc.}
-#*
-#  @brief Get the rotation of a body.
-#  @ingroup bodies
-#  @return pointer to 4 scalars that represent the quaternion.
-# 
-proc dBodyGetQuaternion*(a2: PBody): ptr dReal{.importc.}
+  proc SetQuaternion*(a2: PBody; q: TQuaternion)
+    ## Set the orientation of a body.
+  proc SetLinearVel*(a2: PBody; x, y, z: dReal)
+    ## Set the linear velocity of a body.
+  proc SetAngularVel*(a2: PBody; x, y, z: dReal)
+    ## Set the angular velocity of a body.
+  proc GetPosition*(a2: PBody): ptr dReal
+    ## Get the position of a body.
+    #  @ingroup bodies
+    #  @remarks
+    #  When getting, the returned values are pointers to internal data structures,
+    #  so the vectors are valid until any changes are made to the rigid body
+    #  system structure.
+  proc CopyPosition*(body: PBody; pos: TVector3)
+    ## Copy the position of a body into a vector.
+  proc GetRotation*(a2: PBody): ptr TMatrix3 ## ptr dReal  ## TODO: verify this \
+    ## Get the rotation of a body. \
+    ## returns pointer to a 4x3 rotation matrix.
+  proc CopyRotation*(a2: PBody; R: TMatrix3)
+    ## Copy the rotation of a body.
+  proc GetQuaternion*(a2: PBody): ptr dReal
+    ## Get the rotation of a body.
+    ##@return pointer to 4 scalars that represent the quaternion.
 #*
 #  @brief Copy the orientation of a body into a quaternion.
 #  @ingroup bodies
@@ -2042,11 +1866,12 @@ proc dBodyGetLinearVel*(a2: PBody): ptr dReal{.importc.}
 #  @ingroup bodies
 # 
 proc dBodyGetAngularVel*(a2: PBody): ptr dReal{.importc.}
-#*
-#  @brief Set the mass of a body.
-#  @ingroup bodies
-# 
-proc dBodySetMass*(a2: PBody; mass: ptr TMass){.importc.}
+
+
+importcizzle "dBody":
+  proc SetMass*(a2: PBody; mass: ptr TMass)
+    ## Set the mass of a body.
+  
 #*
 #  @brief Get the mass of a body.
 #  @ingroup bodies
@@ -3557,44 +3382,41 @@ proc dAreConnected*(a2: PBody; a3: PBody): cint {.importc.}
 # 
 proc dAreConnectedExcluding*(body1: PBody; body2: PBody; joint_type: cint): cint {.importc.}
 
+importcizzle "dMass":
+  #*
+  #  Check if a mass structure has valid value.
+  #  The function check if the mass and innertia matrix are positive definits
+  # 
+  #  @param m A mass structure to check
+  # 
+  #  @return 1 if both codition are met
+  # 
+  proc Check*(m: PMass): cint
+  proc SetZero*(a2: PMass)
+  proc SetParameters*(a2: PMass; themass, cgx, cgy, cgz: dReal;
+    I11, I22, I33, I12, I13, I23: dReal)
+  proc SetSphere*(a2: PMass; density, radius: dReal)
+  proc SetSphereTotal*(a2: PMass; total_mass, radius: dReal)
+  proc SetCapsule*(a2: PMass; density: dReal; direction: cint; 
+    radius, length: dReal)
+  proc SetCapsuleTotal*(a2: PMass; total_mass: dReal; direction: cint; 
+                             radius, length: dReal)
+  proc SetCylinder*(a2: PMass; density: dReal; direction: cint; 
+                         radius, length: dReal)
+  proc SetCylinderTotal*(a2: PMass; total_mass: dReal; direction: cint; 
+                    radius, length: dReal)
+  proc SetBox*(a2: PMass; density, lx, ly, lz: dReal)
+  proc SetBoxTotal*(a2: PMass; total_mass, lx, ly, lz: dReal)
+  proc SetTrimesh*(a2: PMass; density: dReal; g: PGeom)
+  proc SetTrimeshTotal*(m: PMass; total_mass: dReal; g: PGeom)
+  proc Adjust*(a2: PMass; newmass: dReal)
+  proc Translate*(a2: PMass; x, y, z: dReal)
+  proc Rotate*(a2: PMass; R: TMatrix3)
+  proc Add*(a, b: PMass)
+  # Backwards compatible API
+  #ODE_API ODE_API_DEPRECATED void TMassSetCappedCylinder(TMass *a, dReal b, int c, dReal d, dReal e);
+  #ODE_API ODE_API_DEPRECATED void TMassSetCappedCylinderTotal(TMass *a, dReal b, int c, dReal d, dReal e);
 
-#*
-#  Check if a mass structure has valid value.
-#  The function check if the mass and innertia matrix are positive definits
-# 
-#  @param m A mass structure to check
-# 
-#  @return 1 if both codition are met
-# 
-proc Check*(m: ptr TMass): cint{.importc: "dMassCheck".}
-proc SetZero*(a2: ptr TMass){.importc: "dMassSetZero".}
-proc SetParameters*(a2: ptr TMass; themass, cgx, cgy, cgz: dReal;
-  I11, I22, I33, I12, I13, I23: dReal){.importc: "dMassSetParameters".}
-proc SetSphere*(a2: ptr TMass; density: dReal; radius: dReal){.importc: "dMassSetSphere".}
-proc SetSphereTotal*(a2: ptr TMass; total_mass: dReal; radius: dReal){.importc: "dMassSetSphereTotal".}
-proc SetCapsule*(a2: ptr TMass; density: dReal; direction: cint; 
-                      radius: dReal; length: dReal){.importc: "dMassSetCapsule".}
-proc SetCapsuleTotal*(a2: ptr TMass; total_mass: dReal; direction: cint; 
-                           radius: dReal; length: dReal){.importc: "dMassSetCapsuleTotal".}
-proc SetCylinder*(a2: ptr TMass; density: dReal; direction: cint; 
-                       radius: dReal; length: dReal){.importc: "dMassSetCylinder".}
-proc SetCylinderTotal*(a2: ptr TMass; total_mass: dReal; direction: cint; 
-                  radius, length: dReal){.importc: "dMassSetCylinderTotal".}
-proc SetBox*(a2: ptr TMass; density: dReal; lx, ly, lz: dReal){.
-  importc: "dMassSetBox".}
-proc SetBoxTotal*(a2: ptr TMass; total_mass: dReal; lx, ly, lz: dReal){.
-  importc: "dMassSetBoxTotal".}
-proc SetTrimesh*(a2: ptr TMass; density: dReal; g: PGeom){.
-  importc: "dMassSetTrimesh".}
-proc SetTrimeshTotal*(m: ptr TMass; total_mass: dReal; g: PGeom){.
-  importc: "dMassSetTrimeshTotal".}
-proc Adjust*(a2: ptr TMass; newmass: dReal){.importc: "dMassAdjust".}
-proc Translate*(a2: ptr TMass; x: dReal; y: dReal; z: dReal){.importc: "dMassTranslate".}
-proc Rotate*(a2: ptr TMass; R: TMatrix3){.importc: "dMassRotate".}
-proc Add*(a: ptr TMass; b: ptr TMass){.importc: "dMassAdd".}
-# Backwards compatible API
-#ODE_API ODE_API_DEPRECATED void TMassSetCappedCylinder(TMass *a, dReal b, int c, dReal d, dReal e);
-#ODE_API ODE_API_DEPRECATED void TMassSetCappedCylinderTotal(TMass *a, dReal b, int c, dReal d, dReal e);
 
 # Library initialization 
 #*
@@ -3635,22 +3457,7 @@ proc Add*(a: ptr TMass; b: ptr TMass){.importc: "dMassAdd".}
 type 
   dInitODEFlags* = enum 
     dInitFlagManualThreadCleanup = 0x00000001 #@< Thread local data is to be cleared explicitly on @c dCleanupODEAllDataForThread function call
-#*
-#  @brief Initializes ODE library.
-# 
-#  @c dInitODE is obsolete. @c dInitODE2 is to be used for library initialization.
-# 
-#  A call to @c dInitODE is equal to the following initialization sequence
-#  @code
-#      dInitODE2(0);
-#      dAllocateODEDataForThread(dAllocateMaskAll);
-#  @endcode
-# 
-#  @see dInitODE2
-#  @see dAllocateODEDataForThread
-#  @ingroup init
-# 
-proc dInitODE*() {.importc: "dInitODE".}
+
 #*
 #  @brief Initializes ODE library.
 #  @param uiInitFlags Initialization options bitmask
@@ -3673,8 +3480,8 @@ proc dInitODE*() {.importc: "dInitODE".}
 #  @see dSpaceSetManualCleanup
 #  @ingroup init
 # 
-proc dInitODE*(uiInitFlags: cuint): cint {.importc: "dInitODE2".}
-  #=0
+proc InitODE*(uiInitFlags: cuint = 0): cint {.importc: "dInitODE2".}
+
 #*
 #  @brief ODE data allocation flags.
 # 
@@ -3705,78 +3512,12 @@ type
     dAllocateFlagBasicData = 0, #@< Allocate basic data required for library to operate
     dAllocateFlagCollisionData = 0x00000001, #@< Allocate data for collision detection
 
-#*
-#  @brief Allocate thread local data to allow the thread calling ODE.
-#  @param uiAllocateFlags Allocation options bitmask.
-#  @return A nonzero if allocation succeeded and zero otherwise.
-#  
-#  The function is required to be called for every thread that is going to use
-#  ODE. This function allocates the data that is required for accessing ODE from 
-#  current thread along with optional data required for particular ODE subsystems.
-# 
-#  @a uiAllocateFlags parameter can contain zero or more flags from @c dAllocateODEDataFlags
-#  enumerated type. Multiple calls with different allocation flags are allowed.
-#  The flags that are already allocated are ignored in subsequent calls. If zero
-#  is passed as the parameter, it means to only allocate the set of most important
-#  data the library can not operate without.
-# 
-#  If the function returns failure status it means that none of the requested 
-#  data has been allocated. The client may retry allocation attempt with the same 
-#  flags when more system resources are available.
-# 
-#  @see dAllocateODEDataFlags
-#  @see dCleanupODEAllDataForThread
-#  @ingroup init
-# 
-proc dAllocateODEDataForThread*(uiAllocateFlags: cuint): cint {.importc.}
-#*
-#  @brief Free thread local data that was allocated for current thread.
-# 
-#  If library was initialized with @c dInitFlagManualThreadCleanup flag the function 
-#  is required to be called on exit of every thread that was calling @c dAllocateODEDataForThread.
-#  Failure to call @c dCleanupODEAllDataForThread may result in some resources remaining 
-#  not freed until program exit. The function may also be called when ODE is still 
-#  being used to release resources allocated for all the current subsystems and 
-#  possibly proceed with data pre-allocation for other subsystems.
-# 
-#  The function can safely be called several times in a row. The function can be 
-#  called without prior invocation of @c dAllocateODEDataForThread. The function 
-#  may not be called before ODE is initialized with @c dInitODE2 or after library 
-#  has been closed with @c dCloseODE. A call to @c dCloseODE implicitly releases 
-#  all the thread local resources that might be allocated for all the threads that 
-#  were using ODE.
-# 
-#  If library was initialized without @c dInitFlagManualThreadCleanup flag 
-#  @c dCleanupODEAllDataForThread must not be called.
-# 
-#  @see dAllocateODEDataForThread
-#  @see dInitODE2
-#  @see dCloseODE
-#  @ingroup init
-# 
-proc dCleanupODEAllDataForThread*() {.importc.}
-#*
-#  @brief Close ODE after it is not needed any more.
-# 
-#  The function is required to be called when program does not need ODE features any more.
-#  The call to @c dCloseODE releases all the resources allocated for library
-#  including all the thread local data that might be allocated for all the threads
-#  that were using ODE.
-# 
-#  @c dCloseODE is a paired function for @c dInitODE2 and must only be called
-#  after successful library initialization.
-# 
-#  @note Important!
-#  Make sure that all the threads that were using ODE have already terminated 
-#  before calling @c dCloseODE. In particular it is not allowed to call
-#  @c dCleanupODEAllDataForThread after @c dCloseODE.
-# 
-#  @see dInitODE2
-#  @see dCleanupODEAllDataForThread
-#  @ingroup init
-# 
-proc dCloseODE*() {.importc.}
-
+proc AllocateODEDataForThread*(uiAllocateFlags: cint): cint {.importc: "dAllocateODEDataForThread".}
+  ## Allocate thread local data to allow the thread calling ODE.
+proc CleanupODEAllDataForThread*() {.importc: "dCleanupODEAllDataForThread".}
+  ## Free thread local data that was allocated for current thread.
+proc CloseODE*() {.importc: "dCloseODE".}
+  ## Close ODE after it is not needed any more.
 {.pop.}
 
   
