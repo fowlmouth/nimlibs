@@ -1,11 +1,16 @@
+import glib2
 
 const LibName = "libclutter-1.0.so.0"
 
 type
-  PActor* = ptr object{.pure.}
+  PActor* = ptr TActor
+  TActor* {.pure.} = object of TGObject
   
-  PStage* = ptr object{.pure.}
-  PText* = ptr object{.pure.}
+  PStage* = ptr TStage
+  TStage*{.pure.} = object of TActor
+  
+  PText* = ptr TText
+  TText* {.pure.} = object of TActor
   
   TColor* = tuple[r, g, b, a: uint8]
   
@@ -14,9 +19,10 @@ type
     ErrorUnknown = 0, ErrorNone = 1
 converter toBool*(some: TClutterInitError): bool = some == ErrorNone
 
-template CLUTTER_STAGE*(some: PActor): PStage = cast[PStage](some)
-template CLUTTER_TEXT*(some: PActor): PText = cast[PText](some)
+discard """template CLUTTER_STAGE*(some: PActor): PStage = cast[PStage](some)
+"""
 
+#G_TYPE_CHECK_INSTANCE_CAST(
 {.push: cdecl, dynlib: LibName.}
 
 proc initClutter*(argc: ptr cint; argv: ptr cstringarray): TClutterInitError {.
@@ -25,10 +31,18 @@ proc initClutter*(argc: ptr cint; argv: ptr cstringarray): TClutterInitError {.
 proc main*() {.importc: "clutter_main".}
 
 proc newStage*(): PActor {.importc: "clutter_stage_new".}
-discard """ClutterActor*  clutter_text_new_with_text (const gchar *font_name,
-    const gchar   *text);"""
+
+proc stage_get_type*(): GType {.importc: "clutter_stage_get_type".}
+template CLUTTER_STAGE*(some: PActor): PStage = cast[PStage](
+  G_TYPE_CHECK_INSTANCE_CAST(some, stage_get_type()))
+
+
 proc newText*(font_name: cstring; text: cstring): PActor {.
   importc: "clutter_text_new_with_text".}
+
+proc text_get_type*(): GType {.importc: "clutter_text_get_type".}
+template CLUTTER_TEXT*(some: PActor): PText = cast[PText](
+  G_TYPE_CHECK_INSTANCE_CAST(some, text_get_type()))      ##cast[PText](some)
 
 proc setColor*(stage: PStage; col: ptr TColor) {.
   importc: "clutter_stage_set_color".}
