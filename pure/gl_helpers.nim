@@ -10,6 +10,13 @@ type
 let
   Vec2fZero* = vec2[GLfloat](0, 0)
   Vec3fZero* = vec3[GLfloat](0, 0, 0)
+var quadObj: PGluQuadric
+
+proc init*() =
+  ## call after setting up a context and after opengl.loadExtensions()
+  if not isNil(quadObj): 
+    gluDeleteQuadric(quadObj)
+  quadObj = gluNewQuadric()
 
 proc radians*(deg: float): float = deg * PI / 180.0
 proc degrees*(rad: float): float = rad * 180.0 / PI
@@ -33,8 +40,9 @@ proc color*(r, g, b: GLubyte; a = GLubyte(255)): TColor4b =
 proc color*(r, g, b: int; a = 255): TColor4b = 
   return color(GLubyte(r), GLubyte(g), GLubyte(b), GLubyte(a))
   
-proc colorf*(r, g, b: float; a = 1.0): TColor4f = vec4[GLfloat](r, g, b, a)
-proc colorf*(r, g, b: int; a = 255): TColor4f = vec4[GLfloat](
+proc colorf*(r, g, b: float; a = 1.0): TColor4f = vec4[GLclampf](
+  r, g, b, a)
+proc colorf*(r, g, b: int; a = 255): TColor4f = vec4[GLclampf](
   r / 255, g / 255, b / 255, a / 255)
 
 template beginGL*(kind: GLenum, body: stmt): stmt =
@@ -109,31 +117,22 @@ proc drawWireCube*(size: GLfloat) {.inline.} =
 proc drawSolidCube*(size: GLfloat) {.inline.} =
   drawBox(size, GL_QUADS)
 
-
-var quadObj: PGluQuadric
-template initQO(): stmt =
-  if isNil(quadObj): quadObj = gluNewQuadric()
-
 proc drawWireSphere*(radius: GLfloat; slices, stacks: GLint) =
-  initQO()
   gluQuadricDrawStyle(quadObj, GLU_LINE)
   gluQuadricNormals(quadObj, GLU_SMOOTH)
   gluSphere(quadObj, radius, slices, stacks)
 
 proc drawSolidSphere*(radius: GLfloat; slices, stacks: GLint) =
-  initQO()
   gluQuadricDrawStyle(quadObj, GLU_FILL)
   gluQuadricNormals(quadObj, GLU_SMOOTH)
   gluSphere(quadObj, radius, slices, stacks)
 
 proc drawWireCone*(base, height: GLfloat; slices, stacks: GLint) =
-  initQO()
   gluQuadricDrawStyle(quadObj, GLU_LINE)
   gluQuadricNormals(quadObj, GLU_SMOOTH)
   gluCylinder(quadObj, base, 0.0, height, slices, stacks)
 
 proc drawSolidCone*(base, height: GLfloat; slices, stacks: GLint) =
-  initQO()
   gluQuadricDrawStyle(quadObj, GLU_FILL)
   gluQuadricNormals(quadObj, GLU_SMOOTH)
   gluCylinder(quadObj, base, 0.0, height, slices, stacks)

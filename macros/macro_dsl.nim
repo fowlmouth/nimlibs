@@ -32,15 +32,18 @@ proc newProc*(name: PNimrodNode; params: varargs[PNimrodNode] = [];
     name,
     newEmptyNode(),
     newEmptyNode(),
-    newNimNode(nnkFormalParams).und(params),
+    newNimNode(nnkFormalParams).und(params), ##params
     newEmptyNode(),  ## pragmas
     newEmptyNode(),
     body)
 
-
 proc procName*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
   assert someProc.kind in {nnkProcDef, nnkMethodDef}
   result = someProc[0]
+
+proc params*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
+  assert someProc.kind in {nnkProcDef, nnkMethodDef}
+  result = someProc[3]
 
 proc pragma*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
   ## Get the pragma of a proc type
