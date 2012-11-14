@@ -93,6 +93,10 @@ type
 
   H3DModelUpdateFlags* = enum 
     Animation = 1, Geometry = 2
+  
+  H3DTerrainOption* = enum
+    Terrain_HeightTexResI = 10000, Terrain_MatResI, Terrain_MeshQualityF,
+    Terrain_SkirtHeightF, Terrain_BlockSizeI
 
 
 {.push: cdecl, dynlib: LibName.}
@@ -238,6 +242,11 @@ importcizzle "h3d":
 
   proc UpdateEmitter*(emitterNode: H3DNode; timeDelta: cfloat)
   proc HasEmitterFinished*(emitterNode: H3DNode): bool
+
+
+importcizzle "h3dext":
+  proc AddTerrainNode*(parent: H3DNode; name: cstring; heightMapResm, materialRes: H3DRes): H3DNode
+  proc CreateTerrainGeoRes*(node: H3DNode; resName: cstring; meshQuality: cfloat): H3DRes
 
 
 {.pop.}
