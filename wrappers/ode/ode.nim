@@ -15,6 +15,22 @@ elif defined(OdeUseDouble):
 else:
   type dReal* = float ##biggest 
 
+when defined(OdeTriIndexShort):
+  type dTriIndex* = uint16
+else:
+  type dTriIndex* = uint32
+
+
+when defined(OdeUseVectorTypes):
+  import vector_math
+  type 
+    TVector3d* = TVector3[dReal]
+    TVector4d* = TVector4[dReal]
+else:
+  type
+    TVector3d* = array[0.. <3, dReal]
+    TVector4d* = array[0.. <4, dReal]
+
 type
   PWorld* = ptr TWorld
   PSpace* = ptr TSpace
@@ -40,6 +56,8 @@ type
   
   TNearCallback* = proc(data: pointer; o1, o2: PGeom){.cdecl.}
    
+  TTriMeshDataID* = ptr object{.pure, final.}
+  
   # contact info used by contact joint 
   dContact* {.pure.} = object 
     surface*: dSurfaceParameters
@@ -82,10 +100,12 @@ type
     JointPU, JointPiston
 
   TVector3* = array[0..2, dReal]
+  ##TVector3* = tuple[x, y, z: dReal] 
   TVector4* = array[0..3, dReal]
-  TMatrix3* = array[0..11, dReal]
-  TMatrix4* = array[0..15, dReal]
-  TMatrix6* = array[0..47, dReal]
+  ##TVector4* = tuple[x, y, z, w: dReal]
+  TMatrix3* = array[0.. <12, dReal]
+  TMatrix4* = array[0.. <16, dReal]
+  TMatrix6* = array[0.. <48, dReal]
   TQuaternion* = array[0..3, dReal]
   
   # ************************************************************************ 
@@ -123,7 +143,7 @@ importCizzle "dGeom":
   proc GetData*(geom: PGeom): pointer
     ##Get the user-defined data pointer stored in the geom.
     
-  proc SetBody*(geom: PGeom; body: PBody) {.importc: "dGeomSetBody".}
+  proc SetBody*(geom: PGeom; body: PBody) 
     ## Set the body associated with a placeable geom.
     # 
     #  Setting a body on a geom automatically combines the position vector and
@@ -722,7 +742,7 @@ proc dGeomCylinderGetParams*(cylinder: PGeom; radius, length: ptr dReal){.import
 proc dCreateRay*(space: PSpace; length: dReal): PGeom{.importc.}
 proc dGeomRaySetLength*(ray: PGeom; length: dReal){.importc.}
 proc dGeomRayGetLength*(ray: PGeom): dReal{.importc.}
-proc dGeomRaySet*(ray: PGeom; px: dReal; py: dReal; pz: dReal; dx: dReal; 
+proc dGeomRaySet*(ray: PGeom; px, py, pz: dReal; dx: dReal; 
                   dy: dReal; dz: dReal){.importc.}
 proc dGeomRayGet*(ray: PGeom; start: TVector3; dir: TVector3){.importc.}
 #
@@ -1119,10 +1139,10 @@ proc dSetColliderOverride*(i: cint; j: cint; fn: ptr dColliderFn){.importc.}
 
 
 
-proc dSimpleSpaceCreate*(space: PSpace): PSpace {.importc.}
-proc dHashSpaceCreate*(space: PSpace): PSpace {.importc.}
-proc dQuadTreeSpaceCreate*(space: PSpace; Center: TVector3; 
-                           Extents: TVector3; Depth: cint): PSpace{.importc.}
+proc CreateSimpleSpace*(space: PSpace): PSpace {.importc: "dSimpleSpaceCreate".}
+proc CreateHashSpace*(space: PSpace): PSpace {.importc: "dHashSpaceCreate".}
+proc CreateQuadTreeSpace*(space: PSpace; Center: TVector3; Extents: TVector3;
+  Depth: cint): PSpace{.importc: "dQuadTreeSpaceCreate".}
 # SAP
 # Order XZY or ZXY usually works best, if your Y is up.
 const 
@@ -1266,7 +1286,7 @@ importCizzle "dWorld":
   #  @brief Get the gravity vector for a given world.
   #  @ingroup world
   # 
-  proc GetGravity*(a2: PWorld; gravity: TVector3)
+  proc GetGravity*(a2: PWorld; gravity: var TVector3)
 
 
   #*
@@ -1710,90 +1730,90 @@ proc dWorldSetMaxAngularSpeed*(w: PWorld; max_speed: dReal) {.importc.}
 #  @ingroup bodies disable
 #  @return the threshold
 # 
-proc dBodyGetAutoDisableLinearThreshold*(a2: PBody): dReal {.importc.}
+proc dBodyGetAutoDisableLinearThreshold*(body: PBody): dReal {.importc.}
 #*
 #  @brief Set auto disable linear average threshold.
 #  @ingroup bodies disable
 #  @return the threshold
 # 
-proc dBodySetAutoDisableLinearThreshold*(a2: PBody; 
+proc dBodySetAutoDisableLinearThreshold*(body: PBody; 
     linear_average_threshold: dReal) {.importc.}
 #*
 #  @brief Get auto disable angular average threshold.
 #  @ingroup bodies disable
 #  @return the threshold
 # 
-proc dBodyGetAutoDisableAngularThreshold*(a2: PBody): dReal {.importc.}
+proc dBodyGetAutoDisableAngularThreshold*(body: PBody): dReal {.importc.}
 #*
 #  @brief Set auto disable angular average threshold.
 #  @ingroup bodies disable
 #  @return the threshold
 # 
-proc dBodySetAutoDisableAngularThreshold*(a2: PBody; 
+proc dBodySetAutoDisableAngularThreshold*(body: PBody; 
     angular_average_threshold: dReal) {.importc.}
 #*
 #  @brief Get auto disable average size (samples count).
 #  @ingroup bodies disable
 #  @return the nr of steps/size.
 # 
-proc dBodyGetAutoDisableAverageSamplesCount*(a2: PBody): cint {.importc.}
+proc dBodyGetAutoDisableAverageSamplesCount*(body: PBody): cint {.importc.}
 #*
 #  @brief Set auto disable average buffer size (average steps).
 #  @ingroup bodies disable
 #  @param average_samples_count the nr of samples to review.
 # 
-proc dBodySetAutoDisableAverageSamplesCount*(a2: PBody; 
+proc dBodySetAutoDisableAverageSamplesCount*(body: PBody; 
     average_samples_count: cuint) {.importc.}
 #*
 #  @brief Get auto steps a body must be thought of as idle to disable
 #  @ingroup bodies disable
 #  @return the nr of steps
 # 
-proc dBodyGetAutoDisableSteps*(a2: PBody): cint {.importc.}
+proc dBodyGetAutoDisableSteps*(body: PBody): cint {.importc.}
 #*
 #  @brief Set auto disable steps.
 #  @ingroup bodies disable
 #  @param steps the nr of steps.
 # 
-proc dBodySetAutoDisableSteps*(a2: PBody; steps: cint) {.importc.}
+proc dBodySetAutoDisableSteps*(body: PBody; steps: cint) {.importc.}
 #*
 #  @brief Get auto disable time.
 #  @ingroup bodies disable
 #  @return nr of seconds
 # 
-proc dBodyGetAutoDisableTime*(a2: PBody): dReal {.importc.}
+proc dBodyGetAutoDisableTime*(body: PBody): dReal {.importc.}
 #*
 #  @brief Set auto disable time.
 #  @ingroup bodies disable
 #  @param time nr of seconds.
 # 
-proc dBodySetAutoDisableTime*(a2: PBody; time: dReal) {.importc.}
+proc dBodySetAutoDisableTime*(body: PBody; time: dReal) {.importc.}
 #*
 #  @brief Get auto disable flag.
 #  @ingroup bodies disable
 #  @return 0 or 1
 # 
-proc dBodyGetAutoDisableFlag*(a2: PBody): cint {.importc.}
+proc dBodyGetAutoDisableFlag*(body: PBody): cint {.importc.}
 #*
 #  @brief Set auto disable flag.
 #  @ingroup bodies disable
 #  @param do_auto_disable 0 or 1
 # 
-proc dBodySetAutoDisableFlag*(a2: PBody; do_auto_disable: cint) {.importc.}
+proc dBodySetAutoDisableFlag*(body: PBody; do_auto_disable: cint) {.importc.}
 #*
 #  @brief Set auto disable defaults.
 #  @remarks
 #  Set the values for the body to those set as default for the world.
 #  @ingroup bodies disable
 # 
-proc dBodySetAutoDisableDefaults*(a2: PBody){.importc.}
+proc dBodySetAutoDisableDefaults*(body: PBody){.importc.}
 #*
 #  @brief Retrieves the world attached to te given body.
 #  @remarks
 #  
 #  @ingroup bodies
 # 
-proc dBodyGetWorld*(a2: PBody): PWorld{.importc.} 
+proc dBodyGetWorld*(body: PBody): PWorld{.importc.} 
 #*
 #  @brief Create a body in given world.
 #  @remarks
@@ -1803,7 +1823,7 @@ proc dBodyGetWorld*(a2: PBody): PWorld{.importc.}
 proc CreateBody*(world: PWorld): PBody {.importc: "dBodyCreate".}
 
 importcizzle "dBody":
-  proc Destroy*(a2: PBody)
+  proc Destroy*(body: PBody)
     ## All joints that are attached to this body will be put into limbo:
     ## i.e. unattached and not affecting the simulation, but they will NOT be
     ## deleted.
@@ -1825,13 +1845,13 @@ importcizzle "dBody":
     ## After setting, the outcome of the simulation is undefined
     ## if the new configuration is inconsistent with the joints/constraints
     ## that are present.
-  proc SetQuaternion*(a2: PBody; q: TQuaternion)
+  proc SetQuaternion*(body: PBody; q: TQuaternion)
     ## Set the orientation of a body.
-  proc SetLinearVel*(a2: PBody; x, y, z: dReal)
+  proc SetLinearVel*(body: PBody; x, y, z: dReal)
     ## Set the linear velocity of a body.
-  proc SetAngularVel*(a2: PBody; x, y, z: dReal)
+  proc SetAngularVel*(body: PBody; x, y, z: dReal)
     ## Set the angular velocity of a body.
-  proc GetPosition*(a2: PBody): ptr dReal
+  proc GetPosition*(body: PBody): ptr TVector3
     ## Get the position of a body.
     #  @ingroup bodies
     #  @remarks
@@ -1840,12 +1860,12 @@ importcizzle "dBody":
     #  system structure.
   proc CopyPosition*(body: PBody; pos: TVector3)
     ## Copy the position of a body into a vector.
-  proc GetRotation*(a2: PBody): ptr TMatrix3 ## ptr dReal  ## TODO: verify this \
+  proc GetRotation*(body: PBody): ptr TMatrix3 ## ptr dReal  ## TODO: verify this \
     ## Get the rotation of a body. \
     ## returns pointer to a 4x3 rotation matrix.
-  proc CopyRotation*(a2: PBody; R: TMatrix3)
+  proc CopyRotation*(body: PBody; R: TMatrix3)
     ## Copy the rotation of a body.
-  proc GetQuaternion*(a2: PBody): ptr dReal
+  proc GetQuaternion*(body: PBody): ptr dReal
     ## Get the rotation of a body.
     ##@return pointer to 4 scalars that represent the quaternion.
 #*
@@ -1860,68 +1880,39 @@ proc dBodyCopyQuaternion*(body: PBody; quat: TQuaternion){.importc.}
 #  @brief Get the linear velocity of a body.
 #  @ingroup bodies
 # 
-proc dBodyGetLinearVel*(a2: PBody): ptr dReal{.importc.}
+proc dBodyGetLinearVel*(body: PBody): ptr dReal{.importc.}
 #*
 #  @brief Get the angular velocity of a body.
 #  @ingroup bodies
 # 
-proc dBodyGetAngularVel*(a2: PBody): ptr dReal{.importc.}
+proc dBodyGetAngularVel*(body: PBody): ptr dReal{.importc.}
 
 
 importcizzle "dBody":
-  proc SetMass*(a2: PBody; mass: ptr TMass)
+  proc SetMass*(body: PBody; mass: ptr TMass)
     ## Set the mass of a body.
+  proc GetMass*(body: PBody; mass: var TMass)
+    ## Get the mass of a body.
+  proc AddForce*(body: PBody; fx, fy, fz: dReal)
+    ## Add force at centre of mass of body in absolute coordinates.
+    
+  proc AddTorque*(body: PBody; fx, fy, fz: dReal)
+    ## Add torque at centre of mass of body in absolute coordinates.
+  proc AddRelForce*(body: PBody; fx, fy, fz: dReal)
+    ## Add force at centre of mass of body in coordinates relative to body.
+    
+  proc AddRelTorque*(body: PBody; fx, fy, fz: dReal)
+    ##Add torque at centre of mass of body in coordinates relative to body.
+  proc AddForceAtPos*(body: PBody; fx, fy, fz: dReal; px, py, pz: dReal)
+    ## Add force at specified point in body in global coordinates.
+    
+  proc AddForceAtRelPos*(body: PBody; fx, fy, fz: dReal; px, py, pz: dReal)
+    ##Add force at specified point in body in local coordinates.
+  proc AddRelForceAtPos*(body: PBody; fx, fy, fz: dReal; px, py, pz: dReal)
+    ##Add force at specified point in body in global coordinates.
+  proc AddRelForceAtRelPos*(body: PBody; fx, fy, fz: dReal; px, py, pz: dReal)
+    ## Add force at specified point in body in local coordinates.
   
-#*
-#  @brief Get the mass of a body.
-#  @ingroup bodies
-# 
-proc dBodyGetMass*(a2: PBody; mass: ptr TMass){.importc.}
-#*
-#  @brief Add force at centre of mass of body in absolute coordinates.
-#  @ingroup bodies
-# 
-proc dBodyAddForce*(a2: PBody; fx: dReal; fy: dReal; fz: dReal){.importc.}
-#*
-#  @brief Add torque at centre of mass of body in absolute coordinates.
-#  @ingroup bodies
-# 
-proc dBodyAddTorque*(a2: PBody; fx: dReal; fy: dReal; fz: dReal){.importc.}
-#*
-#  @brief Add force at centre of mass of body in coordinates relative to body.
-#  @ingroup bodies
-# 
-proc dBodyAddRelForce*(a2: PBody; fx: dReal; fy: dReal; fz: dReal){.importc.}
-#*
-#  @brief Add torque at centre of mass of body in coordinates relative to body.
-#  @ingroup bodies
-# 
-proc dBodyAddRelTorque*(a2: PBody; fx: dReal; fy: dReal; fz: dReal){.importc.}
-#*
-#  @brief Add force at specified point in body in global coordinates.
-#  @ingroup bodies
-# 
-proc dBodyAddForceAtPos*(a2: PBody; fx: dReal; fy: dReal; fz: dReal; 
-                         px: dReal; py: dReal; pz: dReal){.importc.}
-#*
-#  @brief Add force at specified point in body in local coordinates.
-#  @ingroup bodies
-# 
-proc dBodyAddForceAtRelPos*(a2: PBody; fx: dReal; fy: dReal; fz: dReal; 
-                            px: dReal; py: dReal; pz: dReal){.importc.}
-#*
-#  @brief Add force at specified point in body in global coordinates.
-#  @ingroup bodies
-# 
-proc dBodyAddRelForceAtPos*(a2: PBody; fx: dReal; fy: dReal; fz: dReal; 
-                            px: dReal; py: dReal; pz: dReal){.importc.}
-#*
-#  @brief Add force at specified point in body in local coordinates.
-#  @ingroup bodies
-# 
-proc dBodyAddRelForceAtRelPos*(a2: PBody; fx: dReal; fy: dReal; fz: dReal; 
-                               px: dReal; py: dReal; pz: dReal){.importc.}
-#*
 #  @brief Return the current accumulated force vector.
 #  @return points to an array of 3 reals.
 #  @remarks
@@ -1930,7 +1921,7 @@ proc dBodyAddRelForceAtRelPos*(a2: PBody; fx: dReal; fy: dReal; fz: dReal;
 #  body system.
 #  @ingroup bodies
 # 
-proc dBodyGetForce*(a2: PBody): ptr dReal{.importc.}
+proc dBodyGetForce*(body: PBody): ptr dReal{.importc.}
 #*
 #  @brief Return the current accumulated torque vector.
 #  @return points to an array of 3 reals.
@@ -1940,7 +1931,7 @@ proc dBodyGetForce*(a2: PBody): ptr dReal{.importc.}
 #  body system.
 #  @ingroup bodies
 # 
-proc dBodyGetTorque*(a2: PBody): ptr dReal{.importc.}
+proc dBodyGetTorque*(body: PBody): ptr dReal{.importc.}
 #*
 #  @brief Set the body force accumulation vector.
 #  @remarks
@@ -1964,14 +1955,14 @@ proc dBodySetTorque*(body: PBody; x: dReal; y: dReal; z: dReal){.importc.}
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
-proc dBodyGetRelPointPos*(a2: PBody; px: dReal; py: dReal; pz: dReal; 
+proc dBodyGetRelPointPos*(body: PBody; px, py, pz: dReal; 
                           result: TVector3){.importc.}
 #*
 #  @brief Get velocity vector in global coords of a relative point on body.
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
-proc dBodyGetRelPointVel*(a2: PBody; px: dReal; py: dReal; pz: dReal; 
+proc dBodyGetRelPointVel*(body: PBody; px, py, pz: dReal; 
                           result: TVector3){.importc.}
 #*
 #  @brief Get velocity vector in global coords of a globally
@@ -1979,7 +1970,7 @@ proc dBodyGetRelPointVel*(a2: PBody; px: dReal; py: dReal; pz: dReal;
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
-proc dBodyGetPointVel*(a2: PBody; px: dReal; py: dReal; pz: dReal; 
+proc dBodyGetPointVel*(body: PBody; px, py, pz: dReal; 
                        result: TVector3){.importc.}
 #*
 #  @brief takes a point in global coordinates and returns
@@ -1989,21 +1980,21 @@ proc dBodyGetPointVel*(a2: PBody; px: dReal; py: dReal; pz: dReal;
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
-proc dBodyGetPosRelPoint*(a2: PBody; px: dReal; py: dReal; pz: dReal; 
+proc dBodyGetPosRelPoint*(body: PBody; px, py, pz: dReal; 
                           result: TVector3){.importc.}
 #*
 #  @brief Convert from local to world coordinates.
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
-proc dBodyVectorToWorld*(a2: PBody; px: dReal; py: dReal; pz: dReal; 
+proc dBodyVectorToWorld*(body: PBody; px, py, pz: dReal; 
                          result: TVector3){.importc.}
 #*
 #  @brief Convert from world to local coordinates.
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
-proc dBodyVectorFromWorld*(a2: PBody; px: dReal; py: dReal; pz: dReal; 
+proc dBodyVectorFromWorld*(body: PBody; px, py, pz: dReal; 
                            result: TVector3){.importc.}
 #*
 #  @brief controls the way a body's orientation is updated at each timestep.
@@ -2022,7 +2013,7 @@ proc dBodyVectorFromWorld*(a2: PBody; px: dReal; py: dReal; pz: dReal;
 #  error in a simulation, and the finite mode will only fix one of those
 #  sources of error.
 # 
-proc dBodySetFiniteRotationMode*(a2: PBody; mode: cint){.importc.}
+proc dBodySetFiniteRotationMode*(body: PBody; mode: cint){.importc.}
 #*
 #  @brief sets the finite rotation axis for a body.
 #  @ingroup bodies
@@ -2039,19 +2030,19 @@ proc dBodySetFiniteRotationMode*(a2: PBody; mode: cint){.importc.}
 #  you can call this function with the wheel's hinge axis as the argument to
 #  try and improve its behavior.
 # 
-proc dBodySetFiniteRotationAxis*(a2: PBody; x: dReal; y: dReal; z: dReal){.importc.}
+proc dBodySetFiniteRotationAxis*(body: PBody; x: dReal; y: dReal; z: dReal){.importc.}
 #*
 #  @brief Get the way a body's orientation is updated each timestep.
 #  @ingroup bodies
 #  @return the mode 0 (infitesimal) or 1 (finite).
 # 
-proc dBodyGetFiniteRotationMode*(a2: PBody): cint{.importc.}
+proc dBodyGetFiniteRotationMode*(body: PBody): cint{.importc.}
 #*
 #  @brief Get the finite rotation axis.
 #  @param result will contain the axis.
 #  @ingroup bodies
 # 
-proc dBodyGetFiniteRotationAxis*(a2: PBody; result: TVector3){.importc.}
+proc dBodyGetFiniteRotationAxis*(body: PBody; result: TVector3){.importc.}
 #*
 #  @brief Get the number of joints that are attached to this body.
 #  @ingroup bodies
@@ -2064,13 +2055,13 @@ proc dBodyGetNumJoints*(body: PBody): cint{.importc.}
 #  @param index valid range is  0 to n-1 where n is the value returned by
 #  dBodyGetNumJoints().
 # 
-proc dBodyGetJoint*(a2: PBody; index: cint): PJoint{.importc.}
+proc dBodyGetJoint*(body: PBody; index: cint): PJoint{.importc.}
 #*
 #  @brief Set rigid body to dynamic state (default).
 #  @param PBody identification of body.
 #  @ingroup bodies
 # 
-proc dBodySetDynamic*(a2: PBody){.importc.}
+proc dBodySetDynamic*(body: PBody){.importc.}
 #*
 #  @brief Set rigid body to kinematic state.
 #  When in kinematic state the body isn't simulated as a dynamic
@@ -2083,19 +2074,19 @@ proc dBodySetDynamic*(a2: PBody){.importc.}
 #  @param PBody identification of body.
 #  @ingroup bodies
 # 
-proc dBodySetKinematic*(a2: PBody){.importc.}
+proc dBodySetKinematic*(body: PBody){.importc.}
 #*
 #  @brief Check wether a body is in kinematic state.
 #  @ingroup bodies
 #  @return 1 if a body is kinematic or 0 if it is dynamic.
 # 
-proc dBodyIsKinematic*(a2: PBody): cint{.importc.}
+proc dBodyIsKinematic*(body: PBody): cint{.importc.}
 #*
 #  @brief Manually enable a body.
 #  @param PBody identification of body.
 #  @ingroup bodies
 # 
-proc dBodyEnable*(a2: PBody){.importc.}
+proc dBodyEnable*(body: PBody){.importc.}
 #*
 #  @brief Manually disable a body.
 #  @ingroup bodies
@@ -2103,13 +2094,13 @@ proc dBodyEnable*(a2: PBody){.importc.}
 #  A disabled body that is connected through a joint to an enabled body will
 #  be automatically re-enabled at the next simulation step.
 # 
-proc dBodyDisable*(a2: PBody){.importc.}
+proc dBodyDisable*(body: PBody){.importc.}
 #*
 #  @brief Check wether a body is enabled.
 #  @ingroup bodies
 #  @return 1 if a body is currently enabled or 0 if it is disabled.
 # 
-proc dBodyIsEnabled*(a2: PBody): cint{.importc.}
+proc dBodyIsEnabled*(body: PBody): cint{.importc.}
 #*
 #  @brief Set whether the body is influenced by the world's gravity or not.
 #  @ingroup bodies
@@ -3355,18 +3346,18 @@ proc dJointGetFixedParam*(a2: PJoint; parameter: cint): dReal {.importc.}
 #*
 #  @ingroup joints
 # 
-proc dConnectingJoint*(a2: PBody; a3: PBody): PJoint {.importc.}
+proc dConnectingJoint*(body: PBody; a3: PBody): PJoint {.importc.}
 #*
 #  @ingroup joints
 # 
-proc dConnectingJointList*(a2: PBody; a3: PBody; a4: ptr PJoint): cint {.importc.}
+proc dConnectingJointList*(body: PBody; a3: PBody; a4: ptr PJoint): cint {.importc.}
 #*
 #  @brief Utility function
 #  @return 1 if the two bodies are connected together by
 #  a joint, otherwise return 0.
 #  @ingroup joints
 # 
-proc dAreConnected*(a2: PBody; a3: PBody): cint {.importc.}
+proc dAreConnected*(body: PBody; a3: PBody): cint {.importc.}
 #*
 #  @brief Utility function
 #  @return 1 if the two bodies are connected together by
@@ -3518,6 +3509,71 @@ proc CleanupODEAllDataForThread*() {.importc: "dCleanupODEAllDataForThread".}
   ## Free thread local data that was allocated for current thread.
 proc CloseODE*() {.importc: "dCloseODE".}
   ## Close ODE after it is not needed any more.
+
+
+
+#
+#  These dont make much sense now, but they will later when we add more
+#  features.
+# 
+proc CreateTriMeshData*(): TTriMeshDataID {.importc: "dGeomTriMeshDataCreate".}
+proc dGeomTriMeshDataDestroy*(g: TTriMeshDataID) {.importc: "dGeomTriMeshDataDestroy".}
+
+
+const 
+  TRIMESH_FACE_NORMALS* = 0
+
+importcizzle "dGeomTriMesh":
+  proc DataSet*(g: TTriMeshDataID; data_id: cint; in_data: pointer)
+  proc DataGet*(g: TTriMeshDataID; data_id: cint): pointer 
+  #*
+  #  We need to set the last transform after each time step for 
+  #  accurate collision response. These functions get and set that transform.
+  #  It is stored per geom instance, rather than per dTriMeshDataID.
+  # 
+  proc SetLastTransform*(g: dGeomID; last_trans: TMatrix4)
+  proc GetLastTransform*(g: dGeomID): ptr dReal 
+
+  #
+  #  Build a TriMesh data object with single precision vertex data.
+  # 
+  proc DataBuildSingle*(g: TTriMeshDataID; Vertices: pointer; 
+    VertexStride: cint; VertexCount: cint; Indices: pointer; IndexCount: cint; 
+    TriStride: cint)
+  # same again with a normals array (used as trimesh-trimesh optimization) 
+  proc DataBuildSingle1*(g: TTriMeshDataID; Vertices: pointer; 
+    VertexStride: cint; VertexCount: cint; Indices: pointer; IndexCount: cint; 
+    TriStride: cint; Normals: pointer)
+
+  #
+  # Build a TriMesh data object with double precision vertex data.
+  #
+  proc DataBuildDouble*(g: TTriMeshDataID; Vertices: pointer; 
+    VertexStride: cint; VertexCount: cint; Indices: pointer; IndexCount: cint; 
+    TriStride: cint)
+  # same again with a normals array (used as trimesh-trimesh optimization) 
+  proc DataBuildDouble1*(g: TTriMeshDataID; Vertices: pointer; 
+    VertexStride: cint; VertexCount: cint; Indices: pointer; IndexCount: cint; 
+    TriStride: cint; Normals: pointer)
+  #
+  #  Simple build. Single/double precision based on dSINGLE/dDOUBLE!
+  # 
+  proc DataBuildSimple*(g: TTriMeshDataID; Vertices: ptr dReal; 
+    VertexCount: cint; Indices: ptr dTriIndex; IndexCount: cint)
+  # same again with a normals array (used as trimesh-trimesh optimization) 
+  proc DataBuildSimple1*(g: TTriMeshDataID; Vertices: ptr dReal; 
+                                     VertexCount: cint; Indices: ptr dTriIndex; 
+                                     IndexCount: cint; Normals: ptr cint)
+  # Preprocess the trimesh data to remove mark unnecessary edges and vertices 
+  proc DataPreprocess*(g: TTriMeshDataID)
+  # Get and set the internal preprocessed trimesh data buffer, for loading and saving 
+  proc DataGetBuffer*(g: TTriMeshDataID; buf: ptr ptr cuchar; 
+                                  bufLen: ptr cint)
+  proc DataSetBuffer*(g: TTriMeshDataID; buf: ptr cuchar)
+
+
+
+
 {.pop.}
 
   
