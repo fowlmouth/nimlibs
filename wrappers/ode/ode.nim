@@ -42,7 +42,7 @@ type
   PMass* = ptr TMass
   TMass* {.pure.} = object  
     mass*: dReal
-    c*: TVector3
+    c*: TVector3d
     I*: TMatrix3 
   
   TContactGeom* {.pure.} = object
@@ -55,11 +55,11 @@ type
   dContact* {.pure.} = object 
     surface*: dSurfaceParameters
     geom*: dContactGeom
-    fdir1*: TVector3
+    fdir1*: TVector3d
 
   dContactGeom* {.pure.} = object 
-    pos*: TVector3          #/< contact position
-    normal*: TVector3       #/< normal vector
+    pos*: TVector3d          #/< contact position
+    normal*: TVector3d       #/< normal vector
     depth*: dReal           #/< penetration depth
     g1*: PGeom
     g2*: PGeom            #/< the colliding geoms
@@ -84,7 +84,7 @@ type
     ErrUnknown = 0, ErrInternalAssert, ErrUserAssert, ErrLCP
   
   TJointFeedback* {.pure.} = object
-    f1*, t1*, f2*, t2*: TVector3  ## force, torque, force, torque
+    f1*, t1*, f2*, t2*: TVector3d  ## force, torque, force, torque
 
   TJointType* {.size: sizeof(cint).} = enum
     JointUnknown = 0, JointBall, JointHinge, JointSlider,
@@ -92,10 +92,6 @@ type
     JointNull, JointAMotor, JointLMotor, JointPlane2d, JointPR,
     JointPU, JointPiston
 
-  TVector3* = array[0..2, dReal]
-  ##TVector3* = tuple[x, y, z: dReal] 
-  TVector4* = array[0..3, dReal]
-  ##TVector4* = tuple[x, y, z, w: dReal]
   TMatrix3* = array[0.. <12, dReal]
   TMatrix4* = array[0.. <16, dReal]
   TMatrix6* = array[0.. <48, dReal]
@@ -184,10 +180,10 @@ importCizzle "dGeom":
     ## Set the rotation matrix of a placeable geom.
   proc SetQuaternion*(geom: PGeom; Q: TQuaternion) 
     ##  Set the rotation of a placeable geom.
-  proc GetPosition*(geom: PGeom): ptr TVector3 
+  proc GetPosition*(geom: PGeom): ptr TVector3d 
     ## Get the position vector of a placeable geom.
   
-  proc CopyPosition*(geom: PGeom; pos: TVector3)
+  proc CopyPosition*(geom: PGeom; pos: TVector3d)
     
   #  @brief Copy the position of a geom into a vector.
   #  @ingroup collide
@@ -492,7 +488,7 @@ proc dGeomGetOffsetPosition*(geom: PGeom): ptr dReal {.importc.}
 #  @param pos    returns the offset position
 #  @ingroup collide
 # 
-proc dGeomCopyOffsetPosition*(geom: PGeom; pos: TVector3) {.importc.}
+proc dGeomCopyOffsetPosition*(geom: PGeom; pos: TVector3d) {.importc.}
 #*
 #  @brief Get the offset rotation matrix of a geom.
 # 
@@ -658,13 +654,13 @@ importcizzle "dGeom":
     points: ptr dReal; pointcount: cuint; polygons: ptr cuint)
     
   proc BoxSetLengths*(box: PGeom; lx, ly, lz: dReal) 
-  proc BoxGetLengths*(box: PGeom; result: var TVector3)
+  proc BoxGetLengths*(box: PGeom; result: var TVector3d)
     ## Get the side lengths of a box.
   proc BoxPointDepth*(box: PGeom; x, y, z: dReal): dReal 
     ## Return the depth of a point in a box.
     
   proc PlaneSetParams*(plane: PGeom; a, b, c, d: dReal)
-  proc PlaneGetParams*(plane: PGeom; result: var TVector4)
+  proc PlaneGetParams*(plane: PGeom; result: var TVector4d)
   proc PlanePointDepth*(plane: PGeom; x, y, z: dReal): dReal
     
   proc CapsuleSetParams*(ccylinder: PGeom; radius, length: dReal)
@@ -677,7 +673,7 @@ importcizzle "dGeom":
   proc RaySetLength*(ray: PGeom; length: dReal)
   proc RayGetLength*(ray: PGeom): dReal
   proc RaySet*(ray: PGeom; px, py, pz: dReal; dx, dy, dz: dReal)
-  proc RayGet*(ray: PGeom; start: TVector3; dir: TVector3)
+  proc RayGet*(ray: PGeom; start: TVector3d; dir: TVector3d)
   proc RaySetParams*(g: PGeom; FirstContact: cint; BackfaceCull: cint)
   proc RayGetParams*(g: PGeom; FirstContact: var cint; BackfaceCull: var cint)
   proc RaySetClosestHit*(g: PGeom; closestHit: cint)
@@ -1051,13 +1047,13 @@ proc dGeomHeightfieldSetHeightfieldData*(g: PGeom; d: PHeightfieldDataID){.impor
 proc dGeomHeightfieldGetHeightfieldData*(g: PGeom): PHeightfieldDataID{.importc.}
 # ************************************************************************ 
 # utility functions 
-proc dClosestLineSegmentPoints*(a1: TVector3; a2: TVector3; b1: TVector3; 
-                                b2: TVector3; cp1: TVector3; cp2: TVector3){.importc.}
-proc dBoxTouchesBox*(p1: TVector3; R1: TMatrix3; side1: TVector3; 
-                     p2: TVector3; R2: TMatrix3; side2: TVector3): cint {.importc.}
+proc dClosestLineSegmentPoints*(a1: TVector3d; a2: TVector3d; b1: TVector3d; 
+                                b2: TVector3d; cp1: TVector3d; cp2: TVector3d){.importc.}
+proc dBoxTouchesBox*(p1: TVector3d; R1: TMatrix3; side1: TVector3d; 
+                     p2: TVector3d; R2: TMatrix3; side2: TVector3d): cint {.importc.}
 # The meaning of flags parameter is the same as in dCollide()
-proc dBoxBox*(p1: TVector3; R1: TMatrix3; side1: TVector3; p2: TVector3; 
-              R2: TMatrix3; side2: TVector3; normal: TVector3; 
+proc dBoxBox*(p1: TVector3d; R1: TMatrix3; side1: TVector3d; p2: TVector3d; 
+              R2: TMatrix3; side2: TVector3d; normal: TVector3d; 
               depth: ptr dReal; return_code: ptr cint; flags: cint; 
               contact: ptr dContactGeom; skip: cint): cint{.importc.}
 proc dInfiniteAABB*(geom: PGeom; aabb: array[0..6 - 1, dReal]){.importc.}
@@ -1094,7 +1090,7 @@ proc dSetColliderOverride*(i: cint; j: cint; fn: ptr dColliderFn){.importc.}
 
 proc CreateSimpleSpace*(space: PSpace): PSpace {.importc: "dSimpleSpaceCreate".}
 proc CreateHashSpace*(space: PSpace): PSpace {.importc: "dHashSpaceCreate".}
-proc CreateQuadTreeSpace*(space: PSpace; Center: TVector3; Extents: TVector3;
+proc CreateQuadTreeSpace*(space: PSpace; Center: TVector3d; Extents: TVector3d;
   Depth: cint): PSpace{.importc: "dQuadTreeSpaceCreate".}
 # SAP
 # Order XZY or ZXY usually works best, if your Y is up.
@@ -1239,7 +1235,7 @@ importCizzle "dWorld":
   #  @brief Get the gravity vector for a given world.
   #  @ingroup world
   # 
-  proc GetGravity*(a2: PWorld; gravity: var TVector3)
+  proc GetGravity*(a2: PWorld; gravity: var TVector3d)
 
 
   #*
@@ -1294,7 +1290,7 @@ importCizzle "dWorld":
   #  properties of the world.
   # 
   proc ImpulseToForce*(a2: PWorld; stepsize: dReal; ix, iy, iz: dReal; 
-                        force: TVector3)
+                        force: TVector3d)
   #*
   #  @brief Step the world.
   #  @ingroup world
@@ -1804,14 +1800,14 @@ importcizzle "dBody":
     ## Set the linear velocity of a body.
   proc SetAngularVel*(body: PBody; x, y, z: dReal)
     ## Set the angular velocity of a body.
-  proc GetPosition*(body: PBody): ptr TVector3
+  proc GetPosition*(body: PBody): ptr TVector3d
     ## Get the position of a body.
     #  @ingroup bodies
     #  @remarks
     #  When getting, the returned values are pointers to internal data structures,
     #  so the vectors are valid until any changes are made to the rigid body
     #  system structure.
-  proc CopyPosition*(body: PBody; pos: TVector3)
+  proc CopyPosition*(body: PBody; pos: TVector3d)
     ## Copy the position of a body into a vector.
   proc GetRotation*(body: PBody): ptr TMatrix3 ## ptr dReal  ## TODO: verify this \
     ## Get the rotation of a body. \
@@ -1909,14 +1905,14 @@ proc dBodySetTorque*(body: PBody; x: dReal; y: dReal; z: dReal){.importc.}
 #  @param result will contain the result.
 # 
 proc dBodyGetRelPointPos*(body: PBody; px, py, pz: dReal; 
-                          result: TVector3){.importc.}
+                          result: TVector3d){.importc.}
 #*
 #  @brief Get velocity vector in global coords of a relative point on body.
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
 proc dBodyGetRelPointVel*(body: PBody; px, py, pz: dReal; 
-                          result: TVector3){.importc.}
+                          result: TVector3d){.importc.}
 #*
 #  @brief Get velocity vector in global coords of a globally
 #  specified point on a body.
@@ -1924,7 +1920,7 @@ proc dBodyGetRelPointVel*(body: PBody; px, py, pz: dReal;
 #  @param result will contain the result.
 # 
 proc dBodyGetPointVel*(body: PBody; px, py, pz: dReal; 
-                       result: TVector3){.importc.}
+                       result: TVector3d){.importc.}
 #*
 #  @brief takes a point in global coordinates and returns
 #  the point's position in body-relative coordinates.
@@ -1934,21 +1930,21 @@ proc dBodyGetPointVel*(body: PBody; px, py, pz: dReal;
 #  @param result will contain the result.
 # 
 proc dBodyGetPosRelPoint*(body: PBody; px, py, pz: dReal; 
-                          result: TVector3){.importc.}
+                          result: TVector3d){.importc.}
 #*
 #  @brief Convert from local to world coordinates.
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
 proc dBodyVectorToWorld*(body: PBody; px, py, pz: dReal; 
-                         result: TVector3){.importc.}
+                         result: TVector3d){.importc.}
 #*
 #  @brief Convert from world to local coordinates.
 #  @ingroup bodies
 #  @param result will contain the result.
 # 
 proc dBodyVectorFromWorld*(body: PBody; px, py, pz: dReal; 
-                           result: TVector3){.importc.}
+                           result: TVector3d){.importc.}
 #*
 #  @brief controls the way a body's orientation is updated at each timestep.
 #  @ingroup bodies
@@ -1995,7 +1991,7 @@ proc dBodyGetFiniteRotationMode*(body: PBody): cint{.importc.}
 #  @param result will contain the axis.
 #  @ingroup bodies
 # 
-proc dBodyGetFiniteRotationAxis*(body: PBody; result: TVector3){.importc.}
+proc dBodyGetFiniteRotationAxis*(body: PBody; result: TVector3d){.importc.}
 #*
 #  @brief Get the number of joints that are attached to this body.
 #  @ingroup bodies
@@ -2729,7 +2725,7 @@ proc dJointSetPUAnchorDelta*(a2: PJoint; x: dReal; y: dReal; z: dReal;
 #    Ex:
 #    <PRE>
 #    dReal offset = 3;
-#    TVector3 axis;
+#    TVector3d axis;
 #    dJointGetPUAxis(jId, axis);
 #    dJointSetPUAnchor(jId, 0, 0, 0);
 #    // If you request the position you will have: dJointGetPUPosition(jId) == 0
@@ -2803,7 +2799,7 @@ proc dJointSetPistonAnchor*(a2: PJoint; x: dReal; y: dReal; z: dReal){.importc.}
 #    Ex:
 #    <PRE>
 #    dReal offset = 3;
-#    TVector3 axis;
+#    TVector3d axis;
 #    dJointGetPistonAxis(jId, axis);
 #    dJointSetPistonAnchor(jId, 0, 0, 0);
 #    // If you request the position you will have: dJointGetPistonPosition(jId) == 0
@@ -2954,7 +2950,7 @@ proc dJointSetPlane2DAngleParam*(a2: PJoint; parameter: cint; value: dReal){.imp
 #  This returns the point on body 1. If the joint is perfectly satisfied,
 #  this will be the same as the point on body 2.
 # 
-proc dJointGetBallAnchor*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetBallAnchor*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get the joint anchor point, in world coordinates.
 # 
@@ -2965,7 +2961,7 @@ proc dJointGetBallAnchor*(a2: PJoint; result: TVector3){.importc.}
 #  within roundoff errors. dJointGetBallAnchor2() can be used, along with
 #  dJointGetBallAnchor(), to see how far the joint has come apart.
 # 
-proc dJointGetBallAnchor2*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetBallAnchor2*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief get joint parameter
 #  @ingroup joints
@@ -2978,7 +2974,7 @@ proc dJointGetBallParam*(a2: PJoint; parameter: cint): dReal{.importc.}
 #  this will be the same as the point on body 2.
 #  @ingroup joints
 # 
-proc dJointGetHingeAnchor*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetHingeAnchor*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get the joint anchor point, in world coordinates.
 #  @return The point on body 2. If the joint is perfectly satisfied,
@@ -2987,12 +2983,12 @@ proc dJointGetHingeAnchor*(a2: PJoint; result: TVector3){.importc.}
 #  This can be used, for example, to see how far the joint has come apart.
 #  @ingroup joints
 # 
-proc dJointGetHingeAnchor2*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetHingeAnchor2*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief get axis
 #  @ingroup joints
 # 
-proc dJointGetHingeAxis*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetHingeAxis*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief get joint parameter
 #  @ingroup joints
@@ -3037,7 +3033,7 @@ proc dJointGetSliderPositionRate*(a2: PJoint): dReal{.importc.}
 #  @brief Get the slider axis
 #  @ingroup joints
 # 
-proc dJointGetSliderAxis*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetSliderAxis*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief get joint parameter
 #  @ingroup joints
@@ -3049,7 +3045,7 @@ proc dJointGetSliderParam*(a2: PJoint; parameter: cint): dReal{.importc.}
 #  this will be the same as the point on body 2.
 #  @ingroup joints
 # 
-proc dJointGetHinge2Anchor*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetHinge2Anchor*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get the joint anchor point, in world coordinates.
 #  This returns the point on body 2. If the joint is perfectly satisfied,
@@ -3058,17 +3054,17 @@ proc dJointGetHinge2Anchor*(a2: PJoint; result: TVector3){.importc.}
 #  This can be used, for example, to see how far the joint has come apart.
 #  @ingroup joints
 # 
-proc dJointGetHinge2Anchor2*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetHinge2Anchor2*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get joint axis
 #  @ingroup joints
 # 
-proc dJointGetHinge2Axis1*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetHinge2Axis1*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get joint axis
 #  @ingroup joints
 # 
-proc dJointGetHinge2Axis2*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetHinge2Axis2*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief get joint parameter
 #  @ingroup joints
@@ -3095,7 +3091,7 @@ proc dJointGetHinge2Angle2Rate*(a2: PJoint): dReal{.importc.}
 #  this will be the same as the point on body 2.
 #  @ingroup joints
 # 
-proc dJointGetUniversalAnchor*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetUniversalAnchor*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get the joint anchor point, in world coordinates.
 #  @return This returns the point on body 2.
@@ -3109,17 +3105,17 @@ proc dJointGetUniversalAnchor*(a2: PJoint; result: TVector3){.importc.}
 #  dJointGetUniversalAnchor(), to see how far the joint has come apart.
 #  @ingroup joints
 # 
-proc dJointGetUniversalAnchor2*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetUniversalAnchor2*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get axis
 #  @ingroup joints
 # 
-proc dJointGetUniversalAxis1*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetUniversalAxis1*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get axis
 #  @ingroup joints
 # 
-proc dJointGetUniversalAxis2*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetUniversalAxis2*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief get joint parameter
 #  @ingroup joints
@@ -3164,7 +3160,7 @@ proc dJointGetUniversalAngle2Rate*(a2: PJoint): dReal{.importc.}
 #  this will be the same as the point on body 2.
 #  @ingroup joints
 # 
-proc dJointGetPRAnchor*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetPRAnchor*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get the PR linear position (i.e. the prismatic's extension)
 # 
@@ -3201,12 +3197,12 @@ proc dJointGetPRAngleRate*(a2: PJoint): dReal{.importc.}
 #  @brief Get the prismatic axis
 #  @ingroup joints
 # 
-proc dJointGetPRAxis1*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetPRAxis1*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief Get the Rotoide axis
 #  @ingroup joints
 # 
-proc dJointGetPRAxis2*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetPRAxis2*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #  @brief get joint parameter
 #  @ingroup joints
@@ -3218,7 +3214,7 @@ proc dJointGetPRParam*(a2: PJoint; parameter: cint): dReal{.importc.}
 #    this will be the same as the point on body 2.
 #    @ingroup joints
 #   
-proc dJointGetPUAnchor*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetPUAnchor*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #    @brief Get the PU linear position (i.e. the prismatic's extension)
 #   
@@ -3241,17 +3237,17 @@ proc dJointGetPUPositionRate*(a2: PJoint): dReal{.importc.}
 #    @brief Get the first axis of the universal component of the joint
 #    @ingroup joints
 #   
-proc dJointGetPUAxis1*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetPUAxis1*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #    @brief Get the second axis of the Universal component of the joint
 #    @ingroup joints
 #   
-proc dJointGetPUAxis2*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetPUAxis2*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #    @brief Get the prismatic axis
 #    @ingroup joints
 #   
-proc dJointGetPUAxis3*(a2: PJoint; result: TVector3){.importc.}
+proc dJointGetPUAxis3*(a2: PJoint; result: TVector3d){.importc.}
 #*
 #    @brief Get the prismatic axis
 #    @ingroup joints
@@ -3259,7 +3255,7 @@ proc dJointGetPUAxis3*(a2: PJoint; result: TVector3){.importc.}
 #    @note This function was added for convenience it is the same as
 #          dJointGetPUAxis3
 #   
-proc dJointGetPUAxisP*(id: PJoint; result: TVector3){.importc.}
+proc dJointGetPUAxisP*(id: PJoint; result: TVector3d){.importc.}
 #*
 #    @brief Get both angles at the same time.
 #    @ingroup joints
@@ -3281,19 +3277,19 @@ proc getPistonPosition*(a2: PJoint): dReal{.importc: "dJointGetPistonPosition".}
 proc getPistonPositionRate*(a2: PJoint): dReal{.importc: "dJointGetPistonPositionRate".}
 proc getPistonAngle*(a2: PJoint): dReal{.importc: "dJointGetPistonAngle".}
 proc getPistonAngleRate*(a2: PJoint): dReal{.importc: "dJointGetPistonAngleRate".}
-proc getPistonAnchor*(a2: PJoint; result: TVector3){.importc: "dJointGetPistonAnchor".}
-proc dJointGetPistonAnchor2*(a2: PJoint; result: TVector3) {.importc.}
-proc dJointGetPistonAxis*(a2: PJoint; result: TVector3) {.importc.}
+proc getPistonAnchor*(a2: PJoint; result: TVector3d){.importc: "dJointGetPistonAnchor".}
+proc dJointGetPistonAnchor2*(a2: PJoint; result: TVector3d) {.importc.}
+proc dJointGetPistonAxis*(a2: PJoint; result: TVector3d) {.importc.}
 proc dJointGetPistonParam*(a2: PJoint; parameter: cint): dReal {.importc.}
 proc dJointGetAMotorNumAxes*(a2: PJoint): cint {.importc.}
-proc dJointGetAMotorAxis*(a2: PJoint; anum: cint; result: TVector3) {.importc.}
+proc dJointGetAMotorAxis*(a2: PJoint; anum: cint; result: TVector3d) {.importc.}
 proc dJointGetAMotorAxisRel*(a2: PJoint; anum: cint): cint {.importc.}
 proc dJointGetAMotorAngle*(a2: PJoint; anum: cint): dReal {.importc.}
 proc dJointGetAMotorAngleRate*(a2: PJoint; anum: cint): dReal {.importc.}
 proc dJointGetAMotorParam*(a2: PJoint; parameter: cint): dReal {.importc.}
 proc dJointGetAMotorMode*(a2: PJoint): cint {.importc.}
 proc dJointGetLMotorNumAxes*(a2: PJoint): cint {.importc.}
-proc dJointGetLMotorAxis*(a2: PJoint; anum: cint; result: TVector3) {.importc.}
+proc dJointGetLMotorAxis*(a2: PJoint; anum: cint; result: TVector3d) {.importc.}
 proc dJointGetLMotorParam*(a2: PJoint; parameter: cint): dReal {.importc.}
 proc dJointGetFixedParam*(a2: PJoint; parameter: cint): dReal {.importc.}
 #*
@@ -3545,10 +3541,10 @@ importcizzle "dGeom":
   
   proc TriMeshGetTriMeshDataID*(g: PGeom): TTriMeshDataID
   
-  proc TriMeshGetTriangle*(g: PGeom; Index: cint; v0, v1, v2: var TVector3)
+  proc TriMeshGetTriangle*(g: PGeom; Index: cint; v0, v1, v2: var TVector3d)
 
   proc TriMeshGetPoint*(g: PGeom; Index: cint; u: dReal; v: dReal; 
-                           result: var TVector3)
+                           result: var TVector3d)
   proc TriMeshGetTriangleCount*(g: PGeom): cint
   proc TriMeshDataUpdate*(g: TTriMeshDataID)
 
