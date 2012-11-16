@@ -32,25 +32,18 @@ else:
     TVector4d* = array[0.. <4, dReal]
 
 type
-  PWorld* = ptr TWorld
-  PSpace* = ptr TSpace
-  PBody* = ptr TBody
-  PGeom* = ptr TGeom
-  PJoint* = ptr TJoint
-  PJointGroup* = ptr TJointGroup
+  PWorld* = ptr object{.pure.}
+  PSpace* = ptr object{.pure.}
+  PBody* = ptr object{.pure.}
+  PGeom* = ptr object{.pure.}
+  PJoint* = ptr object{.pure.}
+  PJointGroup* = ptr object{.pure.}
   
   PMass* = ptr TMass
   TMass* {.pure.} = object  
     mass*: dReal
     c*: TVector3
     I*: TMatrix3 
-
-  TWorld {.pure.} = object
-  TSpace {.pure.} = object
-  TBody {.pure.} = object
-  TGeom {.pure.} = object
-  TJoint* {.pure.} = object
-  TJointGroup* {.pure.} = object
   
   TContactGeom* {.pure.} = object
   
@@ -117,6 +110,30 @@ type
   dHeightfieldGetHeight* = proc(p_user_data: pointer; x, z: cint): dReal{.cdecl.}
     ##  Used by the callback heightfield data type to sample a height for a
     ##  given cell position.
+
+  dTriCallback* = proc(TriMesh: PGeom; RefObject: PGeom; TriangleIndex: cint): cint
+  dTriArrayCallback* = proc (TriMesh: PGeom; RefObject: PGeom; 
+                             TriIndices: ptr cint; TriCount: cint)
+  dTriRayCallback* = proc(TriMesh: PGeom; Ray: PGeom; TriangleIndex: cint; u: dReal; v: dReal): cint
+  dTriTriMergeCallback* = proc (TriMesh: PGeom; FirstTriangleIndex: cint; 
+                                SecondTriangleIndex: cint): cint
+
+const 
+  dContactMu2* = 0x00000001
+  dContactFDir1* = 0x00000002
+  dContactBounce* = 0x00000004
+  dContactSoftERP* = 0x00000008
+  dContactSoftCFM* = 0x00000010
+  dContactMotion1* = 0x00000020
+  dContactMotion2* = 0x00000040
+  dContactMotionN* = 0x00000080
+  dContactSlip1* = 0x00000100
+  dContactSlip2* = 0x00000200
+  dContactApprox0* = 0x00000000
+  dContactApprox1_1* = 0x00001000
+  dContactApprox1_2* = 0x00002000
+  dContactApprox1* = 0x00003000
+
 
 {.push: cdecl, dynlib: LibName.}
 
@@ -628,103 +645,62 @@ const
   dFirstUserClass* = 14     #dLastUserClass = dFirstUserClass + dMaxUserClasses - 1,
   dGeomNumClasses* = 15
 #*
-#  @defgroup collide_sphere Sphere Class
-#  @ingroup collide
-# 
-#*
-#  @brief Create a sphere geom of the given radius, and return its ID. 
-# 
-#  @param space   a space to contain the new geom. May be null.
-#  @param radius  the radius of the sphere.
-# 
-#  @returns A new sphere geom.
-# 
-#  @remarks The point of reference for a sphere is its center.
-# 
-#  @sa dGeomDestroy
-#  @sa dGeomSphereSetRadius
-#  @ingroup collide_sphere
-# 
-proc CreateSphere*(space: PSpace; radius: dReal): PGeom {.importc: "dCreateSphere".}
 
-
-importcizzle "dGeomSphere":
-  proc SetRadius*(sphere: PGeom; radius: dReal)
-    ##  Set the radius of a sphere geom.
-  
-  proc GetRadius*(sphere: PGeom): dReal
-    ## Retrieves the radius of a sphere geom.
-
-proc dGeomSpherePointDepth*(sphere: PGeom; x, y, z: dReal): dReal{.importc.}
-  ## Calculate the depth of the a given point within a sphere.
-
-#--> Convex Functions
-proc dCreateConvex*(space: PSpace; planes: ptr dReal; planecount: cuint; 
-                     points: ptr dReal; pointcount: cuint; 
-                     polygons: ptr cuint): PGeom {.importc.}
-proc dGeomSetConvex*(g: PGeom; planes: ptr dReal; count: cuint; 
-                     points: ptr dReal; pointcount: cuint; 
-                     polygons: ptr cuint){.importc.}
-#<-- Convex Functions
-#*
-#  @defgroup collide_box Box Class
-#  @ingroup collide
-# 
-#*
-#  @brief Create a box geom with the provided side lengths.
-# 
-#  @param space   a space to contain the new geom. May be null.
-#  @param lx      the length of the box along the X axis
-#  @param ly      the length of the box along the Y axis
-#  @param lz      the length of the box along the Z axis
-# 
-#  @returns A new box geom.
-# 
-#  @remarks The point of reference for a box is its center.
-# 
-#  @sa dGeomDestroy
-#  @sa dGeomBoxSetLengths
-#  @ingroup collide_box
-# 
-proc dCreateBox*(space: PSpace; lx, ly, lz: dReal): PGeom {.importc.}
-#*
-#  @brief Set the side lengths of the given box.
-# 
-#  @param box  the box to set
-#  @param lx      the length of the box along the X axis
-#  @param ly      the length of the box along the Y axis
-#  @param lz      the length of the box along the Z axis
-# 
-#  @sa dGeomBoxGetLengths
-#  @ingroup collide_box
-# 
-proc dGeomBoxSetLengths*(box: PGeom; lx, ly, lz: dReal) {.importc.}
-#*
-#  @brief 
-# 
-#  @param box     the box to query
-#  @param result  the returned side lengths
-# 
-#  @sa dGeomBoxSetLengths
-#  @ingroup collide_box
-# 
 importcizzle "dGeom":
-  proc BoxGetLengths*(box: PGeom; result: TVector3)
+  proc SphereSetRadius*(sphere: PGeom; radius: dReal)
+    ##  Set the radius of a sphere geom.
+  proc SphereGetRadius*(sphere: PGeom): dReal
+    ## Retrieves the radius of a sphere geom.
+  proc SpherePointDepth*(sphere: PGeom; x, y, z: dReal): dReal
+    ## Calculate the depth of the a given point within a sphere.
+    
+  proc SetConvex*(g: PGeom; planes: ptr dReal; count: cuint; 
+    points: ptr dReal; pointcount: cuint; polygons: ptr cuint)
+    
+  proc BoxSetLengths*(box: PGeom; lx, ly, lz: dReal) 
+  proc BoxGetLengths*(box: PGeom; result: var TVector3)
     ## Get the side lengths of a box.
   proc BoxPointDepth*(box: PGeom; x, y, z: dReal): dReal 
     ## Return the depth of a point in a box.
+    
+  proc PlaneSetParams*(plane: PGeom; a, b, c, d: dReal)
+  proc PlaneGetParams*(plane: PGeom; result: var TVector4)
+  proc PlanePointDepth*(plane: PGeom; x, y, z: dReal): dReal
+    
+  proc CapsuleSetParams*(ccylinder: PGeom; radius, length: dReal)
+  proc CapsuleGetParams*(ccylinder: PGeom; radius: var dReal; length: var dReal)
+  proc CapsulePointDepth*(ccylinder: PGeom; x, y, z: dReal): dReal 
 
+  proc CylinderSetParams*(cylinder: PGeom; radius, length: dReal)
+  proc CylinderGetParams*(cylinder: PGeom; radius, length: var dReal)
+  
+  proc RaySetLength*(ray: PGeom; length: dReal)
+  proc RayGetLength*(ray: PGeom): dReal
+  proc RaySet*(ray: PGeom; px, py, pz: dReal; dx, dy, dz: dReal)
+  proc RayGet*(ray: PGeom; start: TVector3; dir: TVector3)
+  proc RaySetParams*(g: PGeom; FirstContact: cint; BackfaceCull: cint)
+  proc RayGetParams*(g: PGeom; FirstContact: var cint; BackfaceCull: var cint)
+  proc RaySetClosestHit*(g: PGeom; closestHit: cint)
+  proc RayGetClosestHit*(g: PGeom): cint 
 
-proc CreatePlane*(space: PSpace; a, b, c, d: dReal): PGeom {.importc: "dCreatePlane".}
-proc dGeomPlaneSetParams*(plane: PGeom; a, b, c, d: dReal){.importc.}
-proc dGeomPlaneGetParams*(plane: PGeom; result: TVector4) {.importc.}
-proc dGeomPlanePointDepth*(plane: PGeom; x, y, z: dReal): dReal {.importc.}
-proc dCreateCapsule*(space: PSpace; radius, length: dReal): PGeom{.importc.}
-proc dGeomCapsuleSetParams*(ccylinder: PGeom; radius, length: dReal){.importc.}
-proc dGeomCapsuleGetParams*(ccylinder: PGeom; radius: ptr dReal; 
-                            length: ptr dReal) {.importc.}
-proc dGeomCapsulePointDepth*(ccylinder: PGeom; x, y, z: dReal): dReal {.importc.}
+  proc TransformSetGeom*(g: PGeom; obj: PGeom)
+  proc TransformGetGeom*(g: PGeom): PGeom
+  proc TransformSetCleanup*(g: PGeom; mode: cint)
+  proc TransformGetCleanup*(g: PGeom): cint
+  proc TransformSetInfo*(g: PGeom; mode: cint)
+  proc TransformGetInfo*(g: PGeom): cint
 
+importcizzle "d":
+  proc CreateSphere*(space: PSpace; radius: dReal): PGeom
+  proc CreateConvex*(space: PSpace; planes: ptr dReal; planecount: cuint; 
+    points: ptr dReal; pointcount: cuint; polygons: ptr cuint): PGeom 
+  proc CreateBox*(space: PSpace; lx, ly, lz: dReal): PGeom 
+  proc CreatePlane*(space: PSpace; a, b, c, d: dReal): PGeom 
+  proc CreateCapsule*(space: PSpace; radius, length: dReal): PGeom
+  proc CreateRay*(space: PSpace; length: dReal): PGeom 
+  proc CreateCylinder*(space: PSpace; radius, length: dReal): PGeom 
+  proc CreateGeomTransform*(space: PSpace): PGeom{.importc.}
+  
 # For now we want to have a backwards compatible C-API, note: C++ API is not.
 ## TODO these translated as const for some reason, they should be template or
 ## inline procs
@@ -736,34 +712,11 @@ dGeomCCylinderPointDepth* = dGeomCapsulePointDepth
 dCCylinderClass* = dCapsuleClass
 """
 
-proc dCreateCylinder*(space: PSpace; radius, length: dReal): PGeom {.importc.}
-proc dGeomCylinderSetParams*(cylinder: PGeom; radius, length: dReal){.importc.}
-proc dGeomCylinderGetParams*(cylinder: PGeom; radius, length: ptr dReal){.importc.}
-proc dCreateRay*(space: PSpace; length: dReal): PGeom{.importc.}
-proc dGeomRaySetLength*(ray: PGeom; length: dReal){.importc.}
-proc dGeomRayGetLength*(ray: PGeom): dReal{.importc.}
-proc dGeomRaySet*(ray: PGeom; px, py, pz: dReal; dx: dReal; 
-                  dy: dReal; dz: dReal){.importc.}
-proc dGeomRayGet*(ray: PGeom; start: TVector3; dir: TVector3){.importc.}
 #
 #  Set/get ray flags that influence ray collision detection.
 #  These flags are currently only noticed by the trimesh collider, because
 #  they can make a major differences there.
 # 
-proc dGeomRaySetParams*(g: PGeom; FirstContact: cint; BackfaceCull: cint){.importc.}
-proc dGeomRayGetParams*(g: PGeom; FirstContact: ptr cint; 
-                        BackfaceCull: ptr cint){.importc.}
-proc dGeomRaySetClosestHit*(g: PGeom; closestHit: cint){.importc.}
-proc dGeomRayGetClosestHit*(g: PGeom): cint {.importc.}
-
-proc dCreateGeomTransform*(space: PSpace): PGeom{.importc.}
-proc dGeomTransformSetGeom*(g: PGeom; obj: PGeom){.importc.}
-proc dGeomTransformGetGeom*(g: PGeom): PGeom{.importc.}
-proc dGeomTransformSetCleanup*(g: PGeom; mode: cint){.importc.}
-proc dGeomTransformGetCleanup*(g: PGeom): cint{.importc.}
-proc dGeomTransformSetInfo*(g: PGeom; mode: cint){.importc.}
-proc dGeomTransformGetInfo*(g: PGeom): cint{.importc.}
-
 
 #*
 #  @brief Creates a heightfield geom.
@@ -3511,67 +3464,93 @@ proc CloseODE*() {.importc: "dCloseODE".}
   ## Close ODE after it is not needed any more.
 
 
-
-#
-#  These dont make much sense now, but they will later when we add more
-#  features.
-# 
 proc CreateTriMeshData*(): TTriMeshDataID {.importc: "dGeomTriMeshDataCreate".}
-proc dGeomTriMeshDataDestroy*(g: TTriMeshDataID) {.importc: "dGeomTriMeshDataDestroy".}
-
+proc Destroy*(g: TTriMeshDataID) {.importc: "dGeomTriMeshDataDestroy".}
+proc TriMeshDataDestroy*(g: TTriMeshDataID) {.inline.} = Destroy(g)
 
 const 
   TRIMESH_FACE_NORMALS* = 0
 
-importcizzle "dGeomTriMesh":
-  proc DataSet*(g: TTriMeshDataID; data_id: cint; in_data: pointer)
-  proc DataGet*(g: TTriMeshDataID; data_id: cint): pointer 
+proc CreateTriMesh*(space: PSpace; Data: TTriMeshDataID; 
+                     Callback: dTriCallback; 
+                     ArrayCallback: dTriArrayCallback; 
+                     RayCallback: dTriRayCallback): PGeom {.importc: "dCreateTriMesh".}
+                     
+importcizzle "dGeom":
+  proc TriMeshDataSet*(g: TTriMeshDataID; data_id: cint; in_data: pointer)
+  proc TriMeshDataGet*(g: TTriMeshDataID; data_id: cint): pointer 
   #*
   #  We need to set the last transform after each time step for 
   #  accurate collision response. These functions get and set that transform.
   #  It is stored per geom instance, rather than per dTriMeshDataID.
   # 
-  proc SetLastTransform*(g: dGeomID; last_trans: TMatrix4)
-  proc GetLastTransform*(g: dGeomID): ptr dReal 
+  proc TriMeshSetLastTransform*(g: PGeom; last_trans: TMatrix4)
+  proc TriMeshGetLastTransform*(g: PGeom): ptr TMatrix4 ## was ptr dReal, verify this 
 
   #
   #  Build a TriMesh data object with single precision vertex data.
   # 
-  proc DataBuildSingle*(g: TTriMeshDataID; Vertices: pointer; 
+  proc TriMeshDataBuildSingle*(g: TTriMeshDataID; Vertices: pointer; 
     VertexStride: cint; VertexCount: cint; Indices: pointer; IndexCount: cint; 
     TriStride: cint)
   # same again with a normals array (used as trimesh-trimesh optimization) 
-  proc DataBuildSingle1*(g: TTriMeshDataID; Vertices: pointer; 
+  proc TriMeshDataBuildSingle1*(g: TTriMeshDataID; Vertices: pointer; 
     VertexStride: cint; VertexCount: cint; Indices: pointer; IndexCount: cint; 
     TriStride: cint; Normals: pointer)
 
   #
   # Build a TriMesh data object with double precision vertex data.
   #
-  proc DataBuildDouble*(g: TTriMeshDataID; Vertices: pointer; 
+  proc TriMeshDataBuildDouble*(g: TTriMeshDataID; Vertices: pointer; 
     VertexStride: cint; VertexCount: cint; Indices: pointer; IndexCount: cint; 
     TriStride: cint)
   # same again with a normals array (used as trimesh-trimesh optimization) 
-  proc DataBuildDouble1*(g: TTriMeshDataID; Vertices: pointer; 
+  proc TriMeshDataBuildDouble1*(g: TTriMeshDataID; Vertices: pointer; 
     VertexStride: cint; VertexCount: cint; Indices: pointer; IndexCount: cint; 
     TriStride: cint; Normals: pointer)
   #
   #  Simple build. Single/double precision based on dSINGLE/dDOUBLE!
   # 
-  proc DataBuildSimple*(g: TTriMeshDataID; Vertices: ptr dReal; 
+  proc TriMeshDataBuildSimple*(g: TTriMeshDataID; Vertices: ptr dReal; 
     VertexCount: cint; Indices: ptr dTriIndex; IndexCount: cint)
   # same again with a normals array (used as trimesh-trimesh optimization) 
-  proc DataBuildSimple1*(g: TTriMeshDataID; Vertices: ptr dReal; 
+  proc TriMeshDataBuildSimple1*(g: TTriMeshDataID; Vertices: ptr dReal; 
                                      VertexCount: cint; Indices: ptr dTriIndex; 
                                      IndexCount: cint; Normals: ptr cint)
   # Preprocess the trimesh data to remove mark unnecessary edges and vertices 
-  proc DataPreprocess*(g: TTriMeshDataID)
+  proc TriMeshDataPreprocess*(g: TTriMeshDataID)
   # Get and set the internal preprocessed trimesh data buffer, for loading and saving 
-  proc DataGetBuffer*(g: TTriMeshDataID; buf: ptr ptr cuchar; 
+  proc TriMeshDataGetBuffer*(g: TTriMeshDataID; buf: ptr ptr cuchar; 
                                   bufLen: ptr cint)
-  proc DataSetBuffer*(g: TTriMeshDataID; buf: ptr cuchar)
+  proc TriMeshDataSetBuffer*(g: TTriMeshDataID; buf: ptr cuchar)
 
 
+  proc TriMeshSetCallback*(g: PGeom; Callback: dTriCallback)
+  proc TriMeshGetCallback*(g: PGeom): dTriCallback
+  
+  proc TriMeshSetArrayCallback*(g: PGeom; ArrayCallback: dTriArrayCallback)
+  proc TriMeshGetArrayCallback*(g: PGeom): dTriArrayCallback
+  
+  proc TriMeshSetRayCallback*(g: PGeom; Callback: dTriRayCallback)
+  proc TriMeshGetRayCallback*(g: PGeom): dTriRayCallback
+
+  proc TriMeshSetTriMergeCallback*(g: PGeom; Callback: dTriTriMergeCallback)
+  proc TriMeshGetTriMergeCallback*(g: PGeom): dTriTriMergeCallback
+  
+  proc TriMeshSetData*(g: PGeom; Data: TTriMeshDataID)
+  proc TriMeshGetData*(g: PGeom): TTriMeshDataID
+  proc TriMeshEnableTC*(g: PGeom; geomClass: cint; enable: cint)
+  proc TriMeshIsTCEnabled*(g: PGeom; geomClass: cint): cint
+  proc TriMeshClearTCCache*(g: PGeom)
+  
+  proc TriMeshGetTriMeshDataID*(g: PGeom): TTriMeshDataID
+  
+  proc TriMeshGetTriangle*(g: PGeom; Index: cint; v0, v1, v2: var TVector3)
+
+  proc TriMeshGetPoint*(g: PGeom; Index: cint; u: dReal; v: dReal; 
+                           result: var TVector3)
+  proc TriMeshGetTriangleCount*(g: PGeom): cint
+  proc TriMeshDataUpdate*(g: TTriMeshDataID)
 
 
 {.pop.}
