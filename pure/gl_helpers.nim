@@ -1,6 +1,7 @@
 import opengl, math, vector_math
 type
   TVector2f* = TVector2[GLfloat]
+  TVector2i* = TVector2[GLint]
   TVector3f* = TVector3[GLfloat]
   TColor4b* = TVector4[GLubyte]
   TColor3b* = TVector3[GLubyte]
@@ -64,6 +65,8 @@ proc glColor*(c: TColor4f) {.inline.} = glColor4f(c.x, c.y, c.z, c.w)
 proc glColor*(c: TColor4b) {.inline.} = glColor4ub(c.x, c.y, c.z, c.w)
 proc glColor*(c: TColor3f) {.inline.} = glColor3f(c.x, c.y, c.z)
 proc glColor*(c: TColor3b) {.inline.} = glColor3ub(c.x, c.y, c.z)
+
+proc glClearColor*(c: TColor4f) {.inline.} = glClearColor(c.x, c.y, c.z, c.w)
 
 proc glVertexFV*(a: var TVector3f) {.inline.}=
   glVertex3fv(addr a.x)
@@ -136,4 +139,18 @@ proc drawSolidCone*(base, height: GLfloat; slices, stacks: GLint) =
   gluQuadricDrawStyle(quadObj, GLU_FILL)
   gluQuadricNormals(quadObj, GLU_SMOOTH)
   gluCylinder(quadObj, base, 0.0, height, slices, stacks)
+
+
+proc DrawNet*(size: GLfloat, LinesX, LinesZ: GLint) =
+  beginGL GL_LINES:
+    for i in 0.. <LinesX:
+      let xc = GLfloat(i)
+      glVertex3f(-size / 2.0 + xc / GLfloat(LinesX-1)*size,
+        0.0, size / 2.0)
+      glVertex3f(-size / 2.0 + xc / GLfloat(LinesX-1)*size,
+        0.0, size / -2.0)
+    for i in 0.. <LinesX:
+      let zc = GLfloat(i)
+      glVertex3f(size / 2.0, 0.0, -size / 2.0 + zc / GLfloat(LinesZ-1)*size)
+      glVertex3f(size / -2.0, 0.0, -size / 2.0 + zc / GLfloat(LinesZ-1)*size)
 

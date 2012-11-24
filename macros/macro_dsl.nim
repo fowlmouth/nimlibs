@@ -56,6 +56,13 @@ proc `pragma=`*(someProc: PNimrodNode; val: PNimrodNode){.compileTime.}=
   assert val.kind in {nnkEmpty, nnkPragma}
   someProc[4] = val
 
+proc body*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
+  assert someProc.kind in {nnkProcDef, nnkMethodDef, nnkDo}
+  result = someProc[6]
+proc `body=`*(someProc: PNimrodNode, val: PNimrodNode) {.compileTime.} =
+  assert someProc.kind in {nnkProcDef, nnkMethodDef, nnkDo}
+  someProc[6] = val
+
 proc `$`*(a: PNimrodNode): string {.compileTime.} =
   ## Get the string of an identifier node
   assert a.kind == nnkIdent
@@ -69,6 +76,17 @@ proc `!!`*(a: string): PNimrodNode {.compileTime, inline.} = newIdentNode(a)
   ## Create a new ident node from a string
   ## The same as !(!(string))
 
+template first*(n: PNimrodNode; cond: expr): PNimrodNode {.immediate, dirty.} =
+  ## Find the first node matching condition (or nil)
+  ## first(n, it.kind == nnkPostfix and it.basename.ident == !"foo")
+  block:
+    var result: PNimrodNode
+    for i in 0.. <len(n):
+      let it = n[i]
+      if cond:
+        result = it
+        break
+    result
 
 proc insert*(a: PNimrodNode; b: PNimrodNode; pos: int) {.compileTime.} =
   ## Insert node B into A at pos
@@ -102,7 +120,14 @@ proc basename*(a: PNimrodNode): PNimrodNode {.compiletime.} =
   of nnkIdent: return a
   of nnkPostfix, nnkPrefix: return a[1]
   else: 
-    quit "Do not know how to get basename of "& treerepr(a) &"\n"& repr(a)
+    quit "Do not know how to get basename of ("& treerepr(a) &")\n"& repr(a)
+proc `basename=`*(a: PNimrodNode; val: TNimrodIdent) {.compileTime.}=
+  case a.kind
+  of nnkIdent: a.ident = val
+  of nnkPostfix, nnkPrefix: a[1] = !val
+  else:
+    quit "Do not know how to get basename of ("& treerepr(a)& ")\n"& repr(a)
+
 
 
 when isMainModule:

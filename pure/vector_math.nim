@@ -1,4 +1,4 @@
-import math, opengl
+import math
 type
   TVector2*[A] = tuple[x: A, y: A]
   
