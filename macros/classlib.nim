@@ -76,12 +76,12 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
       for n in 0..high(statement):
         thisRecd.add statement[n]
     of nnkProcDef, nnkMethodDef:
-      let procname = basename(statement[0]).ident
+      let procname = statement.procName.baseName
       var 
         selfFound = false
         params = statement[3]
       
-      if procname == constructorName:
+      if procname.kind == nnkIdent and procname.ident == constructorName:
         constructorImplemented = true
         selfFound = true
       
