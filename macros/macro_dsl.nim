@@ -76,6 +76,9 @@ proc `!!`*(a: string): PNimrodNode {.compileTime, inline.} = newIdentNode(a)
   ## Create a new ident node from a string
   ## The same as !(!(string))
 
+proc newIdentDefs*(name, kind: PNimrodNode; default = newEmptyNode()): PNimrodNode{.
+  compileTime.} = newNimNode(nnkIdentDefs).und(name, kind, default)
+
 template first*(n: PNimrodNode; cond: expr): PNimrodNode {.immediate, dirty.} =
   ## Find the first node matching condition (or nil)
   ## first(n, it.kind == nnkPostfix and it.basename.ident == !"foo")
@@ -128,7 +131,8 @@ proc `basename=`*(a: PNimrodNode; val: TNimrodIdent) {.compileTime.}=
   else:
     quit "Do not know how to get basename of ("& treerepr(a)& ")\n"& repr(a)
 
-
+proc postfix*(a: PNimrodNode; op: string): PNimrodNode {.
+  compileTime.} = newNimNode(nnkPostfix).und(!!op, a)
 
 when isMainModule:
   macro basenameTest(arg: expr): stmt {.immediate.} =
