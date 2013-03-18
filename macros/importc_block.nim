@@ -7,7 +7,7 @@ import macros, macro_dsl
 ## will be changed to 
 ## proc Foo(){.importc: "box2dFoo".}
 
-macro importCizzle*(prefixx: string; body: stmt): stmt = 
+macro importCizzle*(prefixx: string; body: stmt): stmt {.immediate.}= 
   result = newStmtList()
   let prefix = prefixx.strval
   
