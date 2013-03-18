@@ -43,7 +43,8 @@ proc color*(r, g, b: int; a = 255): TColor4b =
   
 proc colorf*(r, g, b: float; a = 1.0): TColor4f = vec4[GLclampf](
   r, g, b, a)
-proc colorf*(r, g, b: int; a = 255): TColor4f = vec4[GLclampf](
+proc colorf*(r, g, b: range[0..255]; 
+    a: range[0..255] = 255): TColor4f = vec4[GLclampf](
   r / 255, g / 255, b / 255, a / 255)
 
 template beginGL*(kind: GLenum, body: stmt): stmt =

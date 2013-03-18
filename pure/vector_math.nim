@@ -8,7 +8,7 @@ type
 
 proc vec2*[A](x, y: A): TVector2[A] =
   result.x = x
-  result.y = y
+  result.y = y 
 proc vec3*[A](x, y, z: A): TVector3[A] =
   result.x = x
   result.y = y
@@ -75,7 +75,7 @@ proc perpendicular*[T](a: TVector2[T]): TVector2[T] =
   result.y =  a.y
 proc cross*[T](a, b: TVector2[T]): float =
   return a.x * b.y - a.y * b.x
-
+proc dot*[T](a, b: TVector2[T]): float = a.x*b.x + a.y*b.y
 
 proc `+`*[T](a, b: TVector3[T]): TVector3[T] {.inline, noSideEffect.} =
   result.x = a.x + b.x
