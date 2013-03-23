@@ -355,15 +355,14 @@ type
   PButton* = ref TButton
   TButton* = object of TWidget
     text: string
-    onclick*: proc(self: PButton)
-    data*: pointer
+    onclick*: proc(){.closure.}
 
 draw_impl button, PButton:
   R.stringColor W.bounds.x.int16, W.bounds.y.int16, W.text, W.col
 
 evt_impl button, PButton:
   mouseClick BUTTON_LEFT, W.bounds:
-      W.onClick(W)
+      W.onClick()
       return true
       
 proc setText*(b:PButton; s:string) =
@@ -372,10 +371,7 @@ proc setText*(b:PButton; s:string) =
   b.bounds.h = 10
 proc getText*(b:PButton):string = b.text
 
-proc setData*[A](b: PButton; some: ref A) {.inline.} = 
-  b.data = cast[pointer](some)
-
-proc newButton*(t: string; f: proc(self:PButton)): PButton =
+proc newButton*(t: string; f: proc{.closure.}): PButton =
   new result,free_fwd(PButton)
   init result, draw_button, evt_button
   result.setText t
@@ -388,7 +384,7 @@ proc newTextEntry*(t: string): PButton =
   ##need a specialized evt_button to figure out where to put the caret
   ##specialized draw_button to draw the text clamped to some width(optionally)
   result.setText t
-  result.onClick = proc(s:PButton) = nil
+  result.onClick = proc = nil
 
 
 
@@ -468,9 +464,10 @@ proc newSubWindow*(Title: string; Widget: PWidget; shaded = false): PSubWindow =
   result.setTitle title
   result.widget = widget
   result.shaded = shaded
-  result.shadeButton = newButton("-", proc(self: PButton) = 
-    cast[PSubWindow](self.data).toggleShade())
-  result.shadeButton.data = cast[pointer](result)
+  let res = result
+  result.shadeButton = newButton("-", proc =
+    res.toggleShade())
+  GC_unref result
 
 
 type

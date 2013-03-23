@@ -18,7 +18,7 @@ proc showMessage (s: string) =
   var w: PSubWindow
   var algn = newAlignment(South, 2)
   algn.add newTextArea_noInput(text = s)
-  algn.add newButton("Okay", proc(s:PButton) = g.delete(w))
+  algn.add newButton("Okay", proc = g.delete(w))
   w = newSubWindow("oh my god this is important", algn)
   w.setPos random(640 - 100) + 100, random(480 - 80)+80
   g.add w
@@ -26,8 +26,8 @@ proc showMessage (s: string) =
 
 block:
   var inputArea = newTextArea()
-  var btn1 = newButton("Herp", proc(s:PButton) = showMessage("HERP"))
-  var btn2 = newButton("Derp", proc(s:PButton) = nil)
+  var btn1 = newButton("Herp", proc = showMessage("HERP"))
+  var btn2 = newButton("Derp", proc = nil)
   var algn = newAlignment(East, 4)
   algn.add btn1
   algn.add btn2
