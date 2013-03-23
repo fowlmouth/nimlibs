@@ -72,12 +72,12 @@ type
     windowID*: Uint32       #*< The window with keyboard focus, if any 
     text*: array[0.. <SDL_TEXTINPUTEVENT_TEXT_SIZE, char] #*< The input text 
   
-  PMouseMotionEvent* = TMouseMotionEvent
+  PMouseMotionEvent* = ptr TMouseMotionEvent
   TMouseMotionEvent* {.pure, final.} = object 
     kind*: cint           #*< ::SDL_MOUSEMOTION 
     timestamp*: cint
     windowID*: cint       #*< The window with mouse focus, if any 
-    state*: Uint8           #*< The current button state 
+    state*: Uint8           #*< The current button state \
     padding*: array[0.. <3, byte]
     x*: cint                #*< X coordinate, relative to window 
     y*: cint                #*< Y coordinate, relative to window 
@@ -500,7 +500,7 @@ type
     here*: ptr byte
     stop*: ptr byte
 
-{.push: cdecl, dynlib: LibName.}
+{.push callConv: cdecl, dynlib: LibName.}
 
 
 proc SDL_Init*(flags: cint): SDL_Return {.importc: "SDL_Init".}
@@ -593,13 +593,13 @@ proc RenderGetLogicalSize*(renderer: PRenderer; w, h: var cint) {.
 #   \sa SDL_RenderGetViewport()
 #   \sa SDL_RenderSetLogicalSize()
 # 
-proc SetViewport*(renderer: PRenderer; rect: ptr TRect): cint {.
-  importc: "SDL_RenderSetViewport".}
+proc SetViewport*(renderer: PRenderer; rect: ptr TRect): SDL_Return {.
+  importc: "SDL_RenderSetViewport", discardable.}
 proc GetViewport*(renderer: PRenderer; rect: var TRect) {.
   importc: "SDL_RenderGetViewport".}
 
-proc SetScale*(renderer: PRenderer; scaleX, scaleY: cfloat): cint {.
-  importc: "SDL_RenderSetScale".}
+proc SetScale*(renderer: PRenderer; scaleX, scaleY: cfloat): SDL_Return {.
+  importc: "SDL_RenderSetScale", discardable.}
 proc GetScale*(renderer: PRenderer; scaleX, scaleY: var cfloat) {.
   importc: "SDL_RenderGetScale".}
 
@@ -635,6 +635,8 @@ proc DrawRects*(renderer: PRenderer; rects: ptr TRect;
   count: cint): SDL_Return {.importc: "SDL_RenderDrawRects".}
 proc FillRect*(renderer: PRenderer; rect: var TRect): SDL_Return {.
   importc: "SDL_RenderFillRect", discardable.}
+proc FillRect*(renderer: PRenderer; rect: ptr TRect = nil): SDL_Return {.
+  importc: "SDL_RenderFillRect", discardable.}
 #*
 proc FillRects*(renderer: PRenderer; rects: ptr TRect; 
   count: cint): SDL_Return {.importc: "SDL_RenderFillRects", discardable.}
@@ -646,7 +648,8 @@ proc Copy*(renderer: PRenderer; texture: PTexture;
 proc CopyEx*(renderer: PRenderer; texture: PTexture; 
                        srcrect, dstrect: var TRect; 
                        angle: cdouble; center: ptr TPoint; 
-                       flip: TRendererFlip): cint {.importc: "SDL_RenderCopyEx".}
+                       flip: TRendererFlip = SDL_FLIP_NONE): SDL_Return {.
+                       importc: "SDL_RenderCopyEx", discardable.}
 
 
 proc Clear*(renderer: PRenderer): cint {.
@@ -840,7 +843,7 @@ proc GetCurrentDisplayMode*(displayIndex: cint;
 proc GetClosestDisplayMode*(displayIndex: cint; mode: ptr TDisplayMode; 
                                 closest: ptr TDisplayMode): ptr TDisplayMode {.importc: "SDL_GetClosestDisplayMode".}
 #*
-proc GetDisplay*(window: PWindow): cint {.importc: "SDL_GetWindowDisplay".}
+proc GetDisplayIndex*(window: PWindow): cint {.importc: "SDL_GetWindowDisplayIndex".}
 #*
 proc SetDisplayMode*(window: PWindow; 
   mode: ptr TDisplayMode): SDL_Return {.importc: "SDL_SetWindowDisplayMode".}
@@ -940,7 +943,7 @@ proc SetGammaRamp*(window: PWindow;
 proc GetGammaRamp*(window: PWindow; red: ptr Uint16; 
                                green: ptr Uint16; blue: ptr Uint16): cint {.importc: "SDL_GetWindowGammaRamp".}
                                
-proc SDL_DestroyWindow*(window: PWindow) {.importc: "SDL_DestroyWindow".}
+proc Destroy*(window: PWindow) {.importc: "SDL_DestroyWindow".}
 proc IsScreenSaverEnabled*(): Bool32 {.importc: "SDL_IsScreenSaverEnabled".}
 proc EnableScreenSaver*() {.importc: "SDL_EnableScreenSaver".}
 proc DisableScreenSaver*() {.importc: "SDL_DisableScreenSaver".}
@@ -991,6 +994,36 @@ proc RemoveTimer*(id: TTimerID): bool32 {.importc: "SDL_RemoveTimer".}
 # 
 
 
+##SDL_keyboard.h:
+proc GetKeyboardFocus*: PWindow {.importc: "SDL_GetKeyboardFocus".}
+  #Get the window which currently has keyboard focus.
+proc GetKeyboardState*(numkeys: ptr int = nil): ptr array[0 .. SDL_NUM_SCANCODES.int, uint8] {.importc: "SDL_GetKeyboardState".}
+  #Get the snapshot of the current state of the keyboard
+proc GetModState*: TKeymod {.importc: "SDL_GetModState".}
+  #Get the current key modifier state for the keyboard
+proc SetModState*(state: TKeymod) {.importc: "SDL_SetModState".}
+  #Set the current key modifier state for the keyboard
+proc GetKeyFromScancode*(scancode: TScanCode): cint {.importc: "SDL_GetKeyFromScancode".}
+  #Get the key code corresponding to the given scancode according to the current keyboard layout
+proc GetScancodeFromKey*(key: cint): TScanCode {.importc: "SDL_GetScancodeFromKey".}
+  #Get the scancode corresponding to the given key code according to the current keyboard layout
+proc GetScancodeName*(scancode: TScanCode): cstring {.importc: "SDL_GetScancodeName".}
+  #Get a human-readable name for a scancode
+proc GetScancodeFromName*(name: cstring): TScanCode {.importc: "SDL_GetScancodeFromName".}
+  #Get a scancode from a human-readable name
+proc GetKeyname*(key: cint): cstring {.importc: "SDL_GetKeyName".}
+  #Get a human-readable name for a key
+proc GetKeyFromName*(name: cstring): cint {.importc: "SDL_GetKeyFromName".}
+  #Get a key code from a human-readable name
+proc StartTextInput* {.importc: "SDL_StartTextInput".}
+  #Start accepting Unicode text input events
+proc IsTextInputActive*: bool {.importc: "SDL_IsTextInputActive".}
+proc StopTextInput* {.importc: "SDL_StopTextInput".}
+proc SetTextInputRect*(rect: ptr TRect) {.importc: "SDL_SetTextInputRect".}
+proc HasScreenKeyboardSupport*: bool {.importc: "SDL_HasScreenKeyboardSupport".}
+proc IsScreenKeyboardShown*(window: PWindow): bool {.importc: "SDL_IsScreenKeyboardShown".}
+
+
 
 proc GetMouseFocus*(): PWindow {.importc: "SDL_GetMouseFocus".}
 #*
@@ -1001,7 +1034,8 @@ proc GetMouseFocus*(): PWindow {.importc: "SDL_GetMouseFocus".}
 #   mouse cursor position relative to the focus window for the currently
 #   selected mouse.  You can pass NULL for either x or y.
 # 
-proc GetMouseState*(x, y: var cint): Uint8 {.importc: "SDL_GetMouseState".}
+proc GetMouseState*(x, y: var cint): Uint8 {.importc: "SDL_GetMouseState", discardable.}
+proc GetMouseState*(x, y: ptr cint): Uint8 {.importc: "SDL_GetMouseState", discardable.}
 #*
 proc GetRelativeMouseState*(x, y: var cint): Uint8 {.
   importc: "SDL_GetRelativeMouseState".}
@@ -1022,7 +1056,7 @@ proc CreateColorCursor*(surface: PSurface; hot_x, hot_y: cint): PCursor {.
 proc SetCursor*(cursor: PCursor) {.importc: "SDL_SetCursor".}
 proc GetCursor*(): PCursor {.importc: "SDL_GetCursor".}
 proc destroy*(cursor: PCursor) {.importc: "SDL_FreeCursor".}
-proc ShowCursor*(toggle: cint): Bool32 {.importc: "SDL_ShowCursor".}
+proc ShowCursor*(toggle: bool): Bool32 {.importc: "SDL_ShowCursor", discardable.}
 
 
 # Function prototypes 
@@ -1142,19 +1176,20 @@ const
 ##define SDL_GetEventState(type) SDL_EventState(type, SDL_QUERY)
 proc GetEventState*(kind: TEventType): uint8 {.inline.} = EventState(kind, SDL_QUERY)
 
+import unsigned
 ##define SDL_BUTTON(X)		(1 << ((X)-1))
-template SDL_BUTTON*(x: cint): cint = (1 shl (x - 1))
+template SDL_BUTTON*(x: uint8): uint8 = (1'u8 shl (x - 1'u8))
 const 
-  SDL_BUTTON_LEFT* = 1
-  SDL_BUTTON_MIDDLE* = 2
-  SDL_BUTTON_RIGHT* = 3
-  SDL_BUTTON_X1* = 4
-  SDL_BUTTON_X2* = 5 
-  SDL_BUTTON_LMASK* = SDL_BUTTON(SDL_BUTTON_LEFT)
-  SDL_BUTTON_MMASK* = SDL_BUTTON(SDL_BUTTON_MIDDLE)
-  SDL_BUTTON_RMASK* = SDL_BUTTON(SDL_BUTTON_RIGHT)
-  SDL_BUTTON_X1MASK* = SDL_BUTTON(SDL_BUTTON_X1)
-  SDL_BUTTON_X2MASK* = SDL_BUTTON(SDL_BUTTON_X2)
+  BUTTON_LEFT* = 1'u8
+  BUTTON_MIDDLE* = 2'u8
+  BUTTON_RIGHT* = 3'u8
+  BUTTON_X1* = 4'u8
+  BUTTON_X2* = 5'u8
+  BUTTON_LMASK* = SDL_BUTTON(BUTTON_LEFT)
+  BUTTON_MMASK* = SDL_BUTTON(BUTTON_MIDDLE)
+  BUTTON_RMASK* = SDL_BUTTON(BUTTON_RIGHT)
+  BUTTON_X1MASK* = SDL_BUTTON(BUTTON_X1)
+  BUTTON_X2MASK* = SDL_BUTTON(BUTTON_X2)
 
 
                

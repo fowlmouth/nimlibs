@@ -379,3 +379,20 @@ const
   K_KBDILLUMUP*: cint =  SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_KBDILLUMUP)
   K_EJECT*: cint =  SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_EJECT)
   K_SLEEP*: cint =  SDL_SCANCODE_TO_KEYCODE(SDL_SCANCODE_SLEEP)
+
+type
+  TKeymod* {.size: sizeof(cint).} = enum
+    KMOD_NONE = 0x0000, KMOD_LSHIFT = 0x0001, KMOD_RSHIFT = 0x0002,
+    KMOD_LCTRL= 0x0040, KMOD_RCTRL  = 0x0080, KMOD_LALT   = 0x0100,
+    KMOD_RALT = 0x0200, KMOD_LGUI   = 0x0400, KMOD_RGUI   = 0x0800,
+    KMOD_NUM  = 0x1000, KMOD_CAPS   = 0x2000, KMOD_MODE   = 0x4000,
+    KMOD_RESERVED=0x8000
+
+converter toInt*(some: TKeymod): cint = cint(some)
+
+template KMOD_CTRL*: expr = (KMOD_LCTRL or KMOD_RCTRL)
+template KMOD_SHIFT*:expr = (KMOD_LSHIFT or KMOD_RSHIFT)
+template KMOD_ALT*: expr = (KMOD_LALT or KMOD_RALT)
+template KMOD_GUI*: expr = (KMOD_LGUI or KMOD_RGUI)
+
+
