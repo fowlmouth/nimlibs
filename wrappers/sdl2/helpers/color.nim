@@ -9,14 +9,14 @@ template color(name: expr; r, g, b: range[0 .. 255]; a: range[0 .. 255] = 255): 
   immediate, dirty.} =
   const `name`*: sdl2.TColor = col(r.uint8, g.uint8, b.uint8, a.uint8)
 
-color Blue, 0,0,255
-color Red,  255,0,0
-color Green,0,255,0
+color Blue,  0,0,255
+color Red,   255,0,0
+color Green, 0,255,0
 color Yellow,255,255,0
 color Orange,255,165,0
 color Purple,128,0,128
-color Black,0, 0, 0
-color White,255,255,255
+color Black, 0, 0, 0
+color White, 255,255,255
 
 
 
@@ -33,3 +33,4 @@ proc mlStringColor*(RE:PRenderer;X,Y: int16, S: string; COL: TColor; LineSpacing
   inline, discardable.} = mlStringRGBA(RE,X,Y,S,COL.R,COL.G,COL.B,COL.A,LineSpacing)
 proc mlStringColor*(RE:PRenderer;X,Y:int16;S:seq[string];COL:TColor; LineSpacing = 2'i16): SDL_Return{.
   inline,discardable.}=mlStringRGBA(RE,X,Y,S,COL.R,COL.G,COL.B,COL.A,LineSpacing)
+

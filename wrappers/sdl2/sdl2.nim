@@ -290,7 +290,10 @@ type
     max_texture_width*: cint #*< The maximimum texture width 
     max_texture_height*: cint #*< The maximimum texture height 
   
-  
+  TTextureAccess* {.size: sizeof(cint).} = enum
+    SDL_TEXTUREACCESS_STATIC, SDL_TEXTUREACCESS_STREAMING, SDL_TEXTUREACCESS_TARGET
+  TTextureModulate*{.size:sizeof(cint).} = enum
+    SDL_TEXTUREMODULATE_NONE, SDL_TEXTUREMODULATE_COLOR, SDL_TEXTUREMODULATE_ALPHA
   TRendererFlip* {.size: sizeof(cint).} = enum 
     SDL_FLIP_NONE = 0x00000000, #*< Do not flip 
     SDL_FLIP_HORIZONTAL = 0x00000001, #*< flip horizontally 
@@ -392,7 +395,6 @@ const ##RendererFlags
   Renderer_PresentVsync*: cint = 0x00000004 
   Renderer_TargetTexture*: cint = 0x00000008
   
-  ##BlendModes
 const  ## These are the currently supported flags for the ::SDL_surface.
   SDL_SWSURFACE* = 0        #*< Just here for compatibility 
   SDL_PREALLOC* = 0x00000001 #*< Surface uses preallocated memory 

@@ -10,12 +10,12 @@ type
   TDirection* = enum North, East, South, West
 
   PWidget* = ref TWidget
-  TWidget* = object{.inheritable.}
+  TWidget* = object of TObject
     col: sdl2.TColor
     bounds*: TRect     
-    vt: TWidgetVTable
+    vt*: TWidgetVTable
   
-  TWidgetVTable = tuple[
+  TWidgetVTable* = tuple[
     draw: drawProc, event: eventHandler, 
     pos: posSetter, update, destroy: updateFunc]
   
@@ -30,9 +30,6 @@ type
 const
   GuiUpdateDelay = 1000
 
-
-proc free*(some: PWidget) =
-  some.vt.destroy(some)
 
 proc handleEvent*(some: PWidget; evt: var sdl2.TEvent): bool{.
   inline,discardable.}=some.vt.event(some, evt)
@@ -62,22 +59,22 @@ proc contains*(a: TRect; b: TVector2[cint]): bool =
 
 template free_fwd* (ty): expr = (proc(some: ty) = some.vt.destroy(some))
 
-template upd_impl(name: expr; typ: expr; body: stmt): stmt {.id.} =
+template upd_impl*(name: expr; typ: expr; body: stmt): stmt {.id.} =
   proc `upd name`*(W: PWidget) =
     var W{.inject.} = typ(W)
     body
 
-template draw_impl(name, typ: expr; body: stmt): stmt {.id.}=
+template draw_impl*(name, typ: expr; body: stmt): stmt {.id.}=
   proc `draw name`*(W: PWidget; R: PRenderer) =
     let W{.inject.} = typ(W)
     body
 
-template pos_impl(name, typ: expr; body: stmt): stmt {.id.} =
+template pos_impl*(name, typ: expr; body: stmt): stmt {.id.} =
   proc `pos name`*(W: PWidget; X,Y: int16) =
     var W{.inject.} = typ(W)
     body
 
-template evt_impl(name, typ: expr;body: stmt): stmt {.id.} =
+template evt_impl*(name, typ: expr;body: stmt): stmt {.id.} =
   proc `evt name`*(W: PWidget; evt: var sdl2.Tevent): bool =
     var W{.inject.} = typ(W)
     body
@@ -196,6 +193,9 @@ proc newGui*(W: PWindow): PGui =
   W.getSize bounds.w, bounds.h
   result = newGui(bounds)
 
+iterator children*(G: PGui): PWidget {.inline.} =
+  for W in G.widgets.items: yield W
+
 proc add*(G: PGui; W: PWidget): PWidget {.discardable.}=
   for Wdg in G.Widgets:
     if Wdg == W: 
@@ -256,14 +256,15 @@ proc backspace(T: PTextArea) =
     T.move_cursor West
 
 upd_impl textarea, PTextArea:
+  if W.lines.len == 0: W.lines.add ""
   W.bounds.w = min(W.lines.map(proc(x: string): int = x.len).max, 80).int32 * 8'i32
   W.bounds.h = min(W.lines.len, 40).int32 * 10'i32
-  if W.line_no > 0: 
-    inc W.bounds.w, W.line_no * 8
+  #if W.line_no > 0: 
+  inc W.bounds.w, W.line_no * 8
 
 proc joinText*(some: PTextArea): string {.inline.} = some.lines.join("\L")
 proc clearText*(some: PTextArea){.inline.} = 
-  some.lines = @[""]
+  some.lines = @[]
   some.cursor.x = 0
   some.cursor.y = 0
 
@@ -290,7 +291,6 @@ draw_impl textarea, PTextArea:
     R.lineRGBA cursor_x, cursor_y, cursor_x, cursor_y + 10,  W.Col.R, W.Col.G, W.Col.B, W.Col.A
   
 evt_impl textarea, PTextArea:
-  
   template RT : stmt = return true
   
   case evt.kind
@@ -415,6 +415,7 @@ upd_impl subw, PSubWindow:
       inc W.bounds.w, diff
     inc W.bounds.h, W.widget.bounds.h
   
+  W.shadeButton.setText(if W.shaded: "+" else: "-")
   W.shade_button.setPos(W.titleBar.x2 - 8, W.TitleBar.y)
   discard """ let diff = W.titleBar.x + W.titleBar.w - w.bounds.x + w.bounds.x
   if diff > 0: inc W.bounds.w, diff """
@@ -451,13 +452,16 @@ evt_impl subw, PSubWindow:
   
   W.update()
 
-proc toggleShade*(some: PSubWindow) =
-  some.shaded = not some.shaded
-  some.shadeButton.setText(if some.shaded: "+" else: "-")
+proc setShade*(some: PSubWindow; shade: bool) = 
+  some.shaded = shade
   some.update
+proc toggleShade*(some: PSubWindow) {.inline.} = some.setShade(not some.shaded)
 
 proc setTitle*(W: PSubWindow; title: string) =
   W.title = title
+proc getTitle*(W: PSubWindow): string = W.title
+proc getChild*(W: PSubWindow): PWidget = W.widget
+
 proc newSubWindow*(Title: string; Widget: PWidget; shaded = false): PSubWindow =
   new result,free_fwd(PSubWindow)
   result.init(draw=draw_subw, event=evt_subw, pos=pos_subw, update=upd_subw) 
