@@ -21,7 +21,7 @@ macro importCizzle*(prefixx: string; body: stmt): stmt {.immediate.}=
       
       
       s[4].add(newNimNode(nnkExprColonExpr).und(
-        !!"importc", newStrLitNode(prefix & $ident(basename(procname(s))))))
+        !!"importc", newStrLitNode(prefix & $ident(basename(name(s))))))
       
       result.add s
       

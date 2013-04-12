@@ -25,10 +25,15 @@ proc isEmpty*(someNode: PNimrodNode): bool {.
   compileTime, inline.} = someNode.kind == nnkEmpty
   ## Check if the node is empty. Try to keep up. :^)
 
-proc newProc*(name: PNimrodNode; params: varargs[PNimrodNode] = [];  
-    body: PNimrodNode = newStmtList()): PNimrodNode {.compileTime.} =
+template ProcLikeNodes:Expr = {nnkProcDef, nnkMethodDef, nnkDo} #nnkLambda ?
+template ExpectKind*(n: PNimrodNode; k: set[TNimrodNodeKind]) =
+  assert n.kind in k
+
+proc newProc*(name = newEmptyNode(); params: varargs[PNimrodNode] = [];  
+    body: PNimrodNode = newStmtList(), procType = nnkProcDef): PNimrodNode {.compileTime.} =
   ## shortcut for creating a new proc
-  result = newNimNode(nnkProcDef).und(
+  assert procType in ProcLikeNodes
+  result = newNimNode(procType).und(
     name,
     newEmptyNode(),
     newEmptyNode(),
@@ -36,39 +41,44 @@ proc newProc*(name: PNimrodNode; params: varargs[PNimrodNode] = [];
     newEmptyNode(),  ## pragmas
     newEmptyNode(),
     body)
-
-proc procName*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
-  assert someProc.kind in {nnkProcDef, nnkMethodDef}
+ 
+proc name*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
+  assert someProc.kind in ProcLikeNodes
   result = someProc[0]
+proc `name=`*(someProc: PNimrodNode; val: PNimrodNode) {.compileTime.} =
+  assert someProc.kind in ProcLikeNodes
+  someProc[0] = val
 
 proc params*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
-  assert someProc.kind in {nnkProcDef, nnkMethodDef}
+  assert someProc.kind in ProcLikeNodes
   result = someProc[3]
 
 proc pragma*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
   ## Get the pragma of a proc type
   ## These will be expanded
-  assert someProc.kind in {nnkProcDef, nnkMethodDef}
+  assert someProc.kind in ProcLikeNodes
   result = someProc[4]
 proc `pragma=`*(someProc: PNimrodNode; val: PNimrodNode){.compileTime.}=
   ## Set the pragma of a proc type
-  someProc.expectKind nnkProcDef
+  assert someProc.kind in procLikeNodes
   assert val.kind in {nnkEmpty, nnkPragma}
   someProc[4] = val
 
 proc body*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
-  assert someProc.kind in {nnkProcDef, nnkMethodDef, nnkDo}
+  assert someProc.kind in ProcLikeNodes
   result = someProc[6]
 proc `body=`*(someProc: PNimrodNode, val: PNimrodNode) {.compileTime.} =
-  assert someProc.kind in {nnkProcDef, nnkMethodDef, nnkDo}
+  assert someProc.kind in ProcLikeNodes
   someProc[6] = val
 
-proc `$`*(a: PNimrodNode): string {.compileTime.} =
+proc `$`*(node: PNimrodNode): string {.compileTime.} =
   ## Get the string of an identifier node
-  assert a.kind == nnkIdent
-  result = $a.ident
-proc high*(a: PNimrodNode): int {.compileTime.} = return len(a)-1
+  assert node.kind == nnkIdent
+  result = $node.ident
+proc high*(node: PNimrodNode): int {.compileTime.} = len(node) - 1
   ## Return the highest index available for a node
+proc last*(node: PNimrodNode): PNimrodNode {.compileTime.} = node[node.high]
+  ## Return the last item in nodes children. Same as `node[node.high()]` 
 
 proc `!`*(a: TNimrodIdent): PNimrodNode {.compileTime, inline.} = newIdentNode(a)
   ## Create a new ident node from an identifier
@@ -79,16 +89,26 @@ proc `!!`*(a: string): PNimrodNode {.compileTime, inline.} = newIdentNode(a)
 proc newIdentDefs*(name, kind: PNimrodNode; default = newEmptyNode()): PNimrodNode{.
   compileTime.} = newNimNode(nnkIdentDefs).und(name, kind, default)
 
+iterator children*(n: PNimrodNode): PNimrodNode {.inline.}=
+  for i in 0 .. high(n):
+    yield n[i]
+    
 template first*(n: PNimrodNode; cond: expr): PNimrodNode {.immediate, dirty.} =
   ## Find the first node matching condition (or nil)
   ## first(n, it.kind == nnkPostfix and it.basename.ident == !"foo")
   block:
     var result: PNimrodNode
-    for i in 0.. <len(n):
-      let it = n[i]
-      if cond:
-        result = it
-        break
+    when false:
+      for i in 0.. <len(n):
+        let it = n[i]
+        if cond:
+          result = it
+          break
+    else:
+      for it in n.children:
+        if cond: 
+          result = it
+          break
     result
 
 proc insert*(a: PNimrodNode; b: PNimrodNode; pos: int) {.compileTime.} =
@@ -131,8 +151,25 @@ proc `basename=`*(a: PNimrodNode; val: TNimrodIdent) {.compileTime.}=
   else:
     quit "Do not know how to get basename of ("& treerepr(a)& ")\n"& repr(a)
 
-proc postfix*(a: PNimrodNode; op: string): PNimrodNode {.
-  compileTime.} = newNimNode(nnkPostfix).und(!!op, a)
+proc postfix*(node: PNimrodNode; op: string): PNimrodNode {.
+  compileTime.} = newNimNode(nnkPostfix).und(!!op, node)
+proc prefix*(node: PNimrodNode; op: string): PNimrodNode {.
+  compileTime.} = newNimNode(nnkPrefix).und(!!op, node)
+proc infix*(a: PNimrodNode; op: string; b: PNimrodNode): PNimrodNode {.
+  compileTime.} = newNimNode(nnkInfix).und(!!op, a, b)
+
+proc unpackPostfix*(node: PNimrodNode): tuple[node: PNimrodNode; op: string] {.
+  compileTime.} =
+  node.expectKind nnkPostfix
+  result = (node[0], $node[1])
+proc unpackPrefix*(node: PNimrodNode): tuple[node: PNimrodNode; op: string] {.
+  compileTime.} =
+  node.expectKind nnkPrefix
+  result = (node[0], $node[1])
+proc unpackInfix*(node: PNimrodNode): tuple[left: PNimrodNode; op: string; right: PNimrodNode] {.
+  compileTime.} =
+  assert node.kind == nnkInfix
+  result = (node[0], $node[1], node[2])
 
 when isMainModule:
   macro basenameTest(arg: expr): stmt {.immediate.} =

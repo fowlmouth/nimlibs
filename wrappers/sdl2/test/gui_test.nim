@@ -1,5 +1,5 @@
 import sdl2, sdl2_gfx
-import gui
+import gui , color
 import math
 randomize()
 
@@ -19,16 +19,22 @@ proc showMessage (s: string) =
   var algn = newAlignment(South, 2)
   algn.add newTextArea_noInput(text = s)
   algn.add newButton("Okay", proc = g.delete(w))
-  w = newSubWindow("oh my god this is important", algn)
+  w = newSubWindow("omg", algn)
   w.setPos random(640 - 100) + 100, random(480 - 80)+80
   g.add w
+  
+  w.vt.destroy = proc(W:PWidget) =
+    let W = PSubWindow(W)
+    echo "WINDOW FREE'D: ", W.getTitle()
   
 
 block:
   var inputArea = newTextArea()
   var btn1 = newButton("Herp", proc = showMessage("HERP"))
-  var btn2 = newButton("Derp", proc = nil)
-  var algn = newAlignment(East, 4)
+  btn1.setColor Blue
+  var btn2 = newButton("GC Fullcollect", proc = GC_FullCollect())
+  btn2.setColor Red
+  var algn = newAlignment(East, 8)
   algn.add btn1
   algn.add btn2
   var algn2 = newAlignment(South, 4)
@@ -37,6 +43,15 @@ block:
   var w = newSubWindow("Input", algn2)
   w.setPos 100, 100
   g.add w
+  
+  var tileWindows = newButton("Tile Windows", proc =
+    var pos = (0, 0)
+    for widget in g.children:
+      widget.setPos pos[0], pos[1]
+      inc pos[1], widget.bounds.h)
+  tileWindows.setPos 0, 480-10
+  tileWindows.vt.pos = proc(W:PWidget; X,Y:int16) = nil
+  g.add tileWindows
 
 var
   evt: TEvent
