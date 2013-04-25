@@ -8,7 +8,8 @@ type
     TkBracketOpen, TkBracketClose, TkBraceOpen, TkBraceClose, 
     TkNewline, TkComma, TkSemicolon,  
     TkRightArrow, TkLeftArrow, TkPeriod, TkEquals, TkColon,
-    TkInt, TkFloat, 
+    TkInt, TkIntUser1,tkIntUser2,tkIntUser3,
+    TkFloat, 
     TkIdent, TkOperator, TkSqString, TkDqString, 
     TkUser1,TkUser2,TkUser3,TkUser4,TkUser5,TkUser6,TkUser7,TkUser8,TkUser9,
     tkUser10,tkUser11,tkUser12,tkUser13,tkUser14,tkUser15,tkUser16,tkUser17,
@@ -19,6 +20,7 @@ type
 
 const
   StringToks* = {TkIdent, TkOperator, TkSqString, TkDqString, tkUser1 .. tkUser20}
+  IntToks* = {TkINT, TkIntUser1 .. TkIntUser3}
   identChars* = {'A'..'Z','a'..'z','_','0'..'9'}
 type
 
@@ -27,7 +29,7 @@ type
     input*: string
     pre_hooks*, post_hooks*: seq[TLexHook]
     trackIndentation: bool
-    indentStack: seq[int]
+    indentStack*: seq[int]
   
   TLexHook* = proc(L: var TLexer; tok: var TToken): bool{.nimcall.}
     ## Hooks before and after a token is read. You can 
@@ -43,7 +45,7 @@ type
     case kind*: TTokenType
     of StringToks:
       sval*: string
-    of TkInt:
+    of IntToks:
       ival*: int
     of TkFLoat:
       fval*: float
@@ -57,7 +59,7 @@ proc `$`*(tok: TToken): string =
   of StringToks:
     result.add ' '
     result.add tok.sval
-  of TkInt:
+  of IntToks:
     result.add ' '
     result.add($tok.ival)
   of TkFloat:
@@ -76,6 +78,7 @@ proc newLex*(input = ""): TLexer =
   result.Pre_hooks = @[]
   result.post_hooks = @[]
   result.setInput input
+  result.indentStack = @[]
 proc add_PreHook*(L: var TLexer; hooks: varargs[TLexHook]) =
   for h in hooks: L.pre_hooks.add(h)
 proc add_postHook*(L: var TLexer; hooks: varargs[TLexHook]) =
@@ -145,6 +148,9 @@ proc readNumber(L: var TLexer): TToken =
     pos = start
     capt = ""
     hasDecimal = false
+  if L.input[pos.index] == '-':
+    capt.add '-'
+    inc pos
   while true:
     if L.input[pos.index] in digits:
       capt.add(L.input[pos.index])
@@ -223,6 +229,11 @@ proc readToken*(L: var TLexer): TToken =
     if hook(L, result): return
   eofCheck
   
+  
+  if L.currentChar() == '-' and L.nextChar() in '0'..'9':
+    result = L.readNumber()
+    return
+  
   case L.currentChar()
   of identStartChars: result = L.readIdent()
   of '0'..'9': result = L.readNumber()
@@ -286,11 +297,11 @@ proc isOperator*(t: var TToken; ops: varargs[string]): bool =
 
 
 when isMainModule:
-  var l = newLex(if paramCount() == 0: "foo bar, bum" else: paramStr(1))
+  var L = newLex(if paramCount() == 0: "foo bar, bum" else: paramStr(1))
   var t = l.readToken()
   while t.kind != tkEOF:
     echo($t)
-    t = l.readToken()
+    t = L.readToken()
 
 
 
