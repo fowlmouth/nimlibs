@@ -13,6 +13,10 @@ proc Maybe*[T] (some: T): TMaybe[T] =
   result.has = not isNil(some)
   result.val = some 
 
+proc `$`* [T] (some: TMaybe[T]): string =
+  if some: result = $some.val
+  else: result = "Nothing"
+
 #also since we have mutability we should be able to do these
 proc assign*[T] (some: var TMaybe[T]; val: T){.inline.}= 
   some.val = val

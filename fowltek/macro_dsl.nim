@@ -41,7 +41,11 @@ proc newProc*(name = newEmptyNode(); params: varargs[PNimrodNode] = [];
     newEmptyNode(),  ## pragmas
     newEmptyNode(),
     body)
- 
+
+proc copyChildrenTo*(src, dest: PNimrodNode) {.compileTime.}=
+  for i in 0 .. <len(src):
+    dest.add src[i].copyNimTree
+
 proc name*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
   assert someProc.kind in ProcLikeNodes
   result = someProc[0]
@@ -52,6 +56,10 @@ proc `name=`*(someProc: PNimrodNode; val: PNimrodNode) {.compileTime.} =
 proc params*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
   assert someProc.kind in ProcLikeNodes
   result = someProc[3]
+proc `params=`* (someProc: PNimrodNode; params: PNimrodNode) {.compileTime.}=
+  assert someProc.kind in ProcLikeNodes
+  assert params.kind == nnkFormalParams
+  someProc[3] = params
 
 proc pragma*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
   ## Get the pragma of a proc type
