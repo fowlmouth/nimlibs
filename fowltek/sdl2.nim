@@ -5,7 +5,7 @@ when defined(Windows):
 elif defined(Linux):
   const LibName = "libSDL2.so"
 
-include sdl2_keycodes
+include fowltek/sdl2/private/keycodes
 
 const
   SDL_TEXTEDITINGEVENT_TEXT_SIZE* = 32

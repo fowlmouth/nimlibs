@@ -27,7 +27,7 @@
 #
 #
 
-import sdl2
+import fowltek/sdl2
 
 when defined(Linux):
   const LibName = "libSDL2_gfx.so"
