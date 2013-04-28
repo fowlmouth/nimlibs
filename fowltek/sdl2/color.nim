@@ -1,4 +1,4 @@
-import sdl2, vector_math
+import fowltek/sdl2, fowltek/vector_math
 
 proc col(r,g,b,a: uint8): sdl2.TColor {.compiletime.}=
   result.r = r
@@ -23,7 +23,7 @@ color White, 255,255,255
 {.pragma: id, inline, discardable.}
 proc setDrawColor*(R: PRenderer; COL: TColor): SDL_Return{.id.}=R.SetDrawColor(col.R, col.G, col.B, col.A) 
 
-import sdl2_gfx
+import fowltek/sdl2/gfx
 
 proc stringColor*(RE: PRenderer; X,Y: int16, S: cstring; COL: TColor): SDL_Return{.
   inline, discardable.} = stringRGBA(RE,X,Y,S,COL.R,COL.G,COL.B,COL.A)

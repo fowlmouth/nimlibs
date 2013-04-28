@@ -1,12 +1,12 @@
 ## This is a whack GUI based on SDL2_GFX 
 ## May change in the future to use SDL2_TTF more
 ## 
-import sdl2, sdl2_gfx, color, vector_math
+import fowltek/sdl2, fowltek/sdl2/gfx, fowltek/sdl2/color
+import fowltek/vector_math
 import strutils, unsigned
 
 
 type
-
   TDirection* = enum North, East, South, West
 
   PWidget* = ref TWidget

@@ -1,5 +1,5 @@
-import sdl2, sdl2_gfx
-import gui , color
+import fowltek/sdl2, fowltek/sdl2/gfx
+import fowltek/sdl2/gui, fowltek/sdl2/color
 import math
 randomize()
 
