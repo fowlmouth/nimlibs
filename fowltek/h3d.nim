@@ -4,7 +4,6 @@ import importc_block
 when defined(Linux):
   const LibName = "libHorde3D.so"
 
-
 type 
   H3DRes* = cint
   H3DNode* = cint

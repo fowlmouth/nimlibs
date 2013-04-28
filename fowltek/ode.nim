@@ -15,6 +15,8 @@ elif defined(OdeUseDouble):
 else:
   type dReal* = float ##biggest 
 
+converter toReal*(some: float32): dReal = dReal(some)
+
 when defined(OdeTriIndexShort):
   type dTriIndex* = uint16
 else:
@@ -131,7 +133,8 @@ const
   dContactApprox1* = 0x00003000
 
 
-{.push: cdecl, dynlib: LibName.}
+{.push callConv: cdecl.}
+{.push dynlib: LibName.}
 
 importCizzle "dGeom":
   proc Destroy*(geom: PGeom)
@@ -1838,7 +1841,7 @@ proc dBodyGetAngularVel*(body: PBody): ptr dReal{.importc.}
 
 
 importcizzle "dBody":
-  proc SetMass*(body: PBody; mass: ptr TMass)
+  proc SetMass*(body: PBody; mass: PMass)
     ## Set the mass of a body.
   proc GetMass*(body: PBody; mass: var TMass)
     ## Get the mass of a body.
@@ -2336,17 +2339,11 @@ proc dJointCreateAMotor*(a2: PWorld; a3: PJointGroup): PJoint{.importc.}
 #  If it is nonzero the joint is allocated in the given joint group.
 # 
 proc dJointCreateLMotor*(a2: PWorld; a3: PJointGroup): PJoint{.importc.}
-#*
-#  @brief Create a new joint of the plane-2d type.
-#  @ingroup joints
-#  @param PJointGroup set to 0 to allocate the joint normally.
-#  If it is nonzero the joint is allocated in the given joint group.
-# 
-proc dJointCreatePlane2D*(a2: PWorld; a3: PJointGroup): PJoint{.importc.}
-
 
 importcizzle "dJoint":
-  proc Destroy*(a2: PJoint)
+  proc CreatePlane2D*(world: PWorld, group: PJointGroup = nil): PJoint 
+    ## Creates a new joint of the plane-2d type.
+  proc Destroy*(joint: PJoint)
     ## Destroy a joint.
     ##  @ingroup joints
     ## 
@@ -2354,10 +2351,10 @@ importcizzle "dJoint":
     ##  However, if the joint is a member of a group then this function has no
     ##  effect - to destroy that joint the group must be emptied or destroyed.
   
-  proc GetNumBodies*(a2: PJoint): cint
+  proc GetNumBodies*(joint: PJoint): cint
     ## Return the number of bodies attached to the joint
   
-  proc Attach*(a2: PJoint; body1: PBody; body2: PBody)
+  proc Attach*(joint: PJoint; body1: PBody; body2: PBody = nil)
     ## If the joint is already attached, it will be detached from the old bodies
     ##  first.
     ##  To attach this joint to only one body, set body1 or body2 to zero - a zero
@@ -2367,7 +2364,7 @@ importcizzle "dJoint":
     ##  @remarks
     ##  Some joints, like hinge-2 need to be attached to two bodies to work.
     
-  proc Enable*(a2: PJoint)
+  proc Enable*(joint: PJoint)
     ## Manually enable a joint.
 
 importcizzle "dJointGroup":
@@ -3331,7 +3328,7 @@ importcizzle "dMass":
   # 
   #  @return 1 if both codition are met
   # 
-  proc Check*(m: PMass): cint
+  proc Check*(m: PMass): bool#cint
   proc SetZero*(a2: PMass)
   proc SetParameters*(a2: PMass; themass, cgx, cgy, cgz: dReal;
     I11, I22, I33, I12, I13, I23: dReal)

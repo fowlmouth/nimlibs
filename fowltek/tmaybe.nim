@@ -1,3 +1,4 @@
+import typetraits
 
 type
   TMaybe*[T] = tuple[has: bool, val: T]
@@ -9,7 +10,7 @@ proc Nothing*[T]: TMaybe[T] {.inline.} = nil
 proc Maybe*[T] (some: T): TMaybe[T] =
   when not compiles(isNil(some)):
     # how to stringify `A` ? 
-    {.fatal: "Maybe[T](T) requires an implementation of isNil(T)".}
+    {.fatal: "Maybe["& name(T) &"]() requires an implementation of isNil("& name(T) &")".}
   result.has = not isNil(some)
   result.val = some 
 
@@ -47,6 +48,10 @@ when isMainModule:
   if x: echo "x: ", x.val
   x = Maybe[string](nil)
   if x: echo "x: ", x.val
+  
+  var su = 32
+  ## fatal error because int has no isNil()
+  #echo(maybe(su))
   
   
   
