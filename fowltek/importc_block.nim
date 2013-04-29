@@ -1,4 +1,4 @@
-import macros, macro_dsl
+import macros, fowltek/macro_dsl
 
 ## Automatically apply {.importc.} to the following procs (in the future other 
 ## stuff too, mebbe)
