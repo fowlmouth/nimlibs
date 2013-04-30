@@ -1,4 +1,4 @@
-import devil, opengl
+import fowltek/dev/il, opengl, fowltek/importc_block
 when defined(Linux):
   const LibName = "libILUT.so"
 
@@ -11,12 +11,13 @@ const
   ILUT_X11*: ILenum        = 5
   ILUT_DIRECT3D10*: ILenum = 6
 
-{.push: cdecl, dynlib: LibName.}
+{.push  cdecl, dynlib: LibName.}
 
-proc ilutInit*() {.importc.}
-proc ilutRenderer*(renderer: ILenum): ILboolean {.importc.}
+importcizzle "ilut":
+  proc Init*() 
+  proc Renderer*(renderer: ILenum): ILboolean 
 
-proc ilutGLBindTexImage*(): GLuint {.importc.}
+  proc GLBindTexImage*(): GLuint 
 
 
 

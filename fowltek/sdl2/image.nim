@@ -1,8 +1,9 @@
+import fowltek/sdl2
 
 when defined(Linux):
   const LibName = "libSDL2_image.so"
-
-import sdl2
+else:
+  {.fatal: "Please fill out the library name for your platform at the top of fowltek/sdl2/image.nim".}
 
 
 
@@ -15,7 +16,8 @@ const
 
 {.push callconv:cdecl, dynlib: libName.}
 
-
+#import fowltek/importc_block
+#importcizzle "IMG_":
 proc IMG_Linked_Version*(): ptr SDL_version {.importc: "IMG_Linked_Version".}
 
 
