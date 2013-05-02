@@ -1,5 +1,5 @@
 import parseopt, macros
-import macro_dsl
+import fowltek/macro_dsl
  
 macro parseOptions*(body: stmt): stmt {.immediate.}=
   body.expectKind nnkStmtList
