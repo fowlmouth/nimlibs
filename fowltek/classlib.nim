@@ -77,7 +77,7 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
       for n in 0..high(statement):
         thisRecd.add statement[n]
     of nnkProcDef, nnkMethodDef:
-      let procname = statement.procName.baseName
+      let procname = statement.name.baseName
       var 
         selfFound = false
         params = statement[3]
