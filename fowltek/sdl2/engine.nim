@@ -3,7 +3,7 @@
 ## * assisted window and renderer creation
 ## * easy to use event handling system
 import fowltek/sdl2, fowltek/sdl2/gfx
-import fowltek/tmaybe
+import fowltek/tmaybe, unsigned
 
 
 discard SDL_Init(INIT_EVERYTHING)
@@ -17,6 +17,7 @@ type
     evt*: TEvent
     eventHandlers*: TMaybe[TSDLEventHandlerSeq]
     fpsMan*: TFpsManager
+    lastTick*: uint32
 
 proc destroy* (some: var TSdlEngine) {.inline.} =
   destroy some.render
@@ -33,7 +34,9 @@ proc newSDLEngine*(
     sizeX.cint, sizeY.cint, SDL_WINDOW_SHOWN)
   result.render = result.window.createRenderer(-1, 
     Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture)
+  
   result.fpsMan.init
+  result.lastTick = sdl2.getTicks()
 
 proc addHandler*(some: var TSdlEngine; handler: TSdlEventHandler) =
   if not some.eventHandlers:
@@ -52,14 +55,20 @@ proc handleEvents*(some: var TSdlEngine) {.inline.} =
     nil
 
 proc frameDeltaMS*(some: var TSdlEngine): int32 {.
-  inline.} = some.fpsman.getFramerate()
+  inline.} = 
+  let cur = sdl2.getTicks()
+  result = int32(cur - some.lastTick)
+  some.lastTick = cur
+  
 proc frameDeltaFlt*(some: var TSdlEngine): float {.
-  inline.} = 1 / some.frameDeltaMS
+  inline.} = some.frameDeltaMS / 1000
 
-proc delayForFramerate*(some: var TSdlEngine) {.inline.} =
+proc delay*(some: var TSdlEngine) {.inline.} =
   ## wait for fpsMan (use this or Renderer_PresentVSync to limit the framerate)
   some.fpsMan.delay
-
+proc delay*(some: var TSdlEngine; ms: uint32) {.inline.} =
+  ## wait for `ms` milliseconds
+  sdl2.delay ms
 
 
 when isMainModule:

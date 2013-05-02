@@ -1,4 +1,5 @@
-import tables, macros, strutils, macro_dsl
+import tables, macros, strutils
+import fowltek/macro_dsl
 discard """
 Copyright (c) 2012 fowlmouth
 Permission is hereby granted, free of charge, to any person obtaining a copy 
