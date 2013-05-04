@@ -27,16 +27,9 @@ macro parseOptions*(body: stmt): stmt {.immediate.}=
     resCase.add c
   resCase.add(newNimNode(nnkElse).und(quote do:
     echo "Unrecognized option: ", key))
-  
-  when false:
-    result = quote do:
-      for kind, key, value in getOpt():
-        case kind
-        of cmdLongOption, cmdShortOption:
-          `resCase`
-        else: nil
-  else:
-    result = newNimNode(nnkForStmt).und(
+
+  result = parseStmt("when not defined(getOpt): import parseopt").add(
+    newNimNode(nnkForStmt).und(
       !!"kind",
       !!"key",
       !!"value",
@@ -48,6 +41,7 @@ macro parseOptions*(body: stmt): stmt {.immediate.}=
             !!"cmdLongOption", !!"cmdShortOption",
             newStmtList(resCase)),
           newNimNode(nnkElse).und(newNimNode(nnkNilLit)))))
+  )
   
   when defined(Debug):
     echo(repr(result))
