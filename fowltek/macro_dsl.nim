@@ -1,5 +1,4 @@
-import macros
-
+import macros, strutils
 
 proc newEmptyNode*(): PNimrodNode {.compileTime, noSideEffect.} =
   ## Create a new empty node 
@@ -68,21 +67,42 @@ proc pragma*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
   result = someProc[4]
 proc `pragma=`*(someProc: PNimrodNode; val: PNimrodNode){.compileTime.}=
   ## Set the pragma of a proc type
-  assert someProc.kind in procLikeNodes
+  assert someProc.kind in procLikeNodes, "Invalid proc type $#" % $someProc.kind
   assert val.kind in {nnkEmpty, nnkPragma}
   someProc[4] = val
 
+
+template badnodekind(k): stmt =
+  assert false, "Invalid node kind $#" % $k
+
 proc body*(someProc: PNimrodNode): PNimrodNode {.compileTime.} =
-  assert someProc.kind in ProcLikeNodes
-  result = someProc[6]
+  case someProc.kind:
+  of procLikeNodes:
+    return someProc[6]
+  of nnkBlockStmt:
+    return someproc[1]
+  else: 
+    badNodeKind someproc.kind
 proc `body=`*(someProc: PNimrodNode, val: PNimrodNode) {.compileTime.} =
-  assert someProc.kind in ProcLikeNodes
-  someProc[6] = val
+  case someProc.kind 
+  of ProcLikeNodes:
+    someProc[6] = val
+  of nnkBlockStmt:
+    someProc[1] = val
+  else:
+    quit "Unknown node kind $# for macro_dsl.`body=`" % $someProc.kind 
+  
 
 proc `$`*(node: PNimrodNode): string {.compileTime.} =
   ## Get the string of an identifier node
-  assert node.kind == nnkIdent
-  result = $node.ident
+  case node.kind
+  of nnkIdent:
+    result = $node.ident
+  of nnkStrLit:
+    result = node.strval
+  else: 
+    quit "Unknown node kind $# for macro_dsl.`$`" % $node.kind
+
 proc high*(node: PNimrodNode): int {.compileTime.} = len(node) - 1
   ## Return the highest index available for a node
 proc last*(node: PNimrodNode): PNimrodNode {.compileTime.} = node[node.high]
@@ -119,7 +139,7 @@ template first*(n: PNimrodNode; cond: expr): PNimrodNode {.immediate, dirty.} =
           break
     result
 
-proc insert*(a: PNimrodNode; b: PNimrodNode; pos: int) {.compileTime.} =
+proc insert*(a: PNimrodNOde; pos: int; b: PNimrodNode) {.compileTime.} =
   ## Insert node B into A at pos
   if high(a) < pos:
     ## add some empty nodes first
@@ -133,7 +153,8 @@ proc insert*(a: PNimrodNode; b: PNimrodNode; pos: int) {.compileTime.} =
     for i in countdown(high(a) - 2, pos):
       a[i + 1] = a[i]
     a[pos] = b
-
+proc insert*(a: PNimrodNode; b: PNimrodNode; pos: int) {.compileTime, deprecated.} =
+  insert(a, pos, b)
 
 proc dot*(a, b: PNimrodNode): PNimrodNode {.compileTime, inline.} = 
   ## Create new dot expression
@@ -178,6 +199,9 @@ proc unpackInfix*(node: PNimrodNode): tuple[left: PNimrodNode; op: string; right
   compileTime.} =
   assert node.kind == nnkInfix
   result = (node[0], $node[1], node[2])
+
+proc copy*(node: PNimrodNode): PNimrodNode {.compileTime.} = 
+  return node.copyNimTree()
 
 when isMainModule:
   macro basenameTest(arg: expr): stmt {.immediate.} =
