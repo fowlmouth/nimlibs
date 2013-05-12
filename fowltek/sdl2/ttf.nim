@@ -28,7 +28,7 @@ type
 #//#define TTF_PATCHLEVEL		SDL_TTF_PATCHLEVEL
 ##define TTF_VERSION(X)		SDL_TTF_VERSION(X)
 #
-{.push: cdecl, dynlib: LibName.}
+{.push callConv:cdecl, dynlib:LibName.}
 
 proc TTF_Linked_Version*(): ptr SDL_version {.importc: "TTF_Linked_Version".}
 # ZERO WIDTH NO-BREAKSPACE (Unicode byte order mark) 

@@ -5,8 +5,8 @@
 import fowltek/sdl2, fowltek/sdl2/gfx
 import fowltek/tmaybe, unsigned
 
-
-discard SDL_Init(INIT_EVERYTHING)
+template import_all_sdl2_modules*: stmt =
+  import fowltek/sdl2, fowltek/sdl2/image, fowltek/sdl2/gfx, fowltek/sdl2/ttf
 
 type 
   TSdlEventHandler* = proc(engine: var TSdlEngine): bool
@@ -39,12 +39,13 @@ proc newSDLEngine*(
   result.lastTick = sdl2.getTicks()
 
 proc addHandler*(some: var TSdlEngine; handler: TSdlEventHandler) =
-  if not some.eventHandlers:
-    some.eventHandlers = Just(@[ handler ])
-  else:
+  if some.eventHandlers:
     some.eventHandlers.val.add handler
+  else:
+    some.eventHandlers = Just(@[ handler ])
 
 proc pollHandle*(some: var TSdlEngine): bool {.inline.} =
+  ## Returns true if an event was polled.
   result = some.evt.pollEvent
   if result and some.eventHandlers:
     for eh in some.eventHandlers.val:
@@ -56,6 +57,8 @@ proc handleEvents*(some: var TSdlEngine) {.inline.} =
 
 proc frameDeltaMS*(some: var TSdlEngine): int32 {.
   inline.} = 
+  ## Calculate the delta MS from the last frame.
+  ## This is no use unless you call it once a frame.
   let cur = sdl2.getTicks()
   result = int32(cur - some.lastTick)
   some.lastTick = cur
@@ -69,6 +72,8 @@ proc delay*(some: var TSdlEngine) {.inline.} =
 proc delay*(some: var TSdlEngine; ms: uint32) {.inline.} =
   ## wait for `ms` milliseconds
   sdl2.delay ms
+
+converter toRenderer*(some: var TSdlEngine): sdl2.PRenderer = some.render
 
 
 when isMainModule:
