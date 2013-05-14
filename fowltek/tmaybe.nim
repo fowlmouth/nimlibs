@@ -29,6 +29,7 @@ proc unset* [T] (some: var TMaybe[T]){.inline.} =
   reset some.val
   some.has = false
 
+
 when isMainModule:
   var s = Just("String")
   if s:
@@ -52,9 +53,6 @@ when isMainModule:
   var su = 32
   ## fatal error because int has no isNil()
   #echo(maybe(su))
-  
-  
-  
   
   
   

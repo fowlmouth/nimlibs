@@ -24,7 +24,7 @@ proc isEmpty*(someNode: PNimrodNode): bool {.
   compileTime, inline.} = someNode.kind == nnkEmpty
   ## Check if the node is empty. Try to keep up. :^)
 
-template ProcLikeNodes:Expr = {nnkProcDef, nnkMethodDef, nnkDo, nnkLambda}
+template ProcLikeNodes*:Expr = {nnkProcDef, nnkMethodDef, nnkDo, nnkLambda}
 template ExpectKind*(n: PNimrodNode; k: set[TNimrodNodeKind]) =
   assert n.kind in k
 

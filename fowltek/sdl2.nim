@@ -1222,4 +1222,8 @@ proc Rect*(x, y: cint; w = cint(0), h = cint(0)): TRect =
   result.w = w
   result.h = h
 
-proc Point*(x, y: cint): TPoint = (x, y)
+proc Point*[T: TNumber](x, y: T): TPoint = (x.cint, y.cint)
+
+proc Contains*(some: TRect; point: TPoint): bool = 
+  return point.x >= some.x and point.x <= (some.x + some.w) and
+    point.y >= some.y and point.y <= (some.y + some.h)
