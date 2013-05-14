@@ -1,6 +1,10 @@
-import fowltek/pointer_arithm, algorithm
+import fowltek/pointer_arithm, algorithm, sequtils
 import hashes, tables, typetraits, strutils
 import macros, fowltek/macro_dsl
+
+when NimrodVersion != "0.9.1":
+  {.error "Please to use the Live Nimrod off the Git Head. A thank you <3".}
+  
 
 type
   PComponentInfo* = ref object{.inheritable.}
@@ -9,7 +13,9 @@ type
     size: int
     unicast_messages: TTable[int, TWeightedUnicastFunc] ## unicast messages implemented by this component, with their weight
     multicast_messages: TTable[int, pointer] 
-    initializer: proc(E: var TEntity)
+    initializer: proc(E: PEntity)
+    requiredComponents, conflictingComponents: seq[int]
+    
     
   TWeightedUnicastFunc* = tuple[weight: int, func: pointer]
   
@@ -20,8 +26,10 @@ type
     instantiatedSize: int
 
     vtable: seq[pointer]
-    multicast: seq[seq[pointer]] ## [msg][function]
-  TVtableEntry = tuple[offset: int, func: pointer] 
+    multicast: seq[seq[pointer]] ## [msg_id][functions] 
+    
+    validType: bool
+    whatsTheProblem: string
 
   PEntity* = var TEntity
   TEntity* = object
@@ -45,19 +53,10 @@ template idCounter(name, varname): stmt =
   proc `next name`: int =
     result = varname
     inc varname
-    #echo "counter at " , varname
 idCounter MessageID, numMessages
 idCounter ComponentID, numComponents
 
 
-proc newBlockStmt*(label: PNimrodNode = nil, statements: varargs[PNimrodNode] = []): PNimrodNode {.compiletime.} =
-  result = newNimNode(nnkBlockStmt).add(
-    if label.isNil: newNimNode(nnkEmpty) 
-    else: label,
-    newStmtList(statements))
-proc newLetStmt*(name, value: PNimrodNode): PNimrodNode{.compiletime.} =
-  result = newNimNode(nnkLetSection).add(
-    newNimNode(nnkIdentDefs).add(name, newNimNode(nnkEmpty), value))
 
 macro msg_impl* : stmt {.immediate.} =
   # Implements a message for a component
@@ -70,7 +69,7 @@ macro msg_impl* : stmt {.immediate.} =
   #
   # Usage:
   #   msg_impl(THealthComponent, "TakeDamage") do (damage: int):
-  #     # `entity: var TEntity` is injected in the params
+  #     # `entity: PEntity` is injected in the params
   #     entity[THealthComponent].hp -= damage
   #     if entity[THealthComponent].hp < 0:
   #       entity.die
@@ -120,11 +119,6 @@ macro msg_impl* : stmt {.immediate.} =
   #  let comp = componentInfo(component)
   addNode newLetStmt(!!"comp", newCall("componentInfo", component.copy))
   
-  
-  #  
-  #  comp.unicast_messages[msg_id] = cast[pointer](proc(##entity: var TEntity,## arg1, arg2: TARG){.noDecl.} =
-  #    body
-  
   template complainAboutOverriding(msgType): expr = parseExpr("""echo "Overriding the implementation of $1 message `$2` for ", comp.name""" %
     [msgType, $msg_str])
   
@@ -132,7 +126,7 @@ macro msg_impl* : stmt {.immediate.} =
   var this_lambda = newNimNode(nnkLambda)
   func.copyChildrenTo this_lambda
   this_lambda[3].insert 1, newNimNode(nnkIdentDefs).add(
-    !!"entity", newNimNode(nnkVarTy).add(!!"TEntity"), newEmptyNode())
+    !!"entity", !!"PEntity", newEmptyNode())
   castexpr.add this_lambda
   
   let branch = newNimNode(nnkIfStmt)
@@ -195,29 +189,7 @@ proc messageID(msg: expr[string]): int =
   return id
 
 
-proc add_ident_if_absent* (dest: PNimrodNode, ident: string) {.compiletime.} =
-  for i in 0 .. <len(dest):
-    template node: expr = dest[i]
-    if node.kind == nnkIdent and cmpIgnoreStyle(ident, $node) == 0:
-      return
-  dest.add(!!ident)
-
-discard """ proc ensure_len* [T] (some: var seq[T], len: int) {.inline.} =
-  if some.isNil: newSeq(some, 0)
-  if some.len < len:
-    some.setLen len
- """
-proc eqIdent* (a, b: string): bool = cmpIgnoreStyle(a, b) == 0
-
-proc has_argument_named* (params: PNimrodNode; name: string): bool {.compiletime.}=
-  assert params.kind == nnkFormalParams
-  for i in 1 .. <len(params): 
-    template node: expr = params[i]
-    if name.eqIdent( $(node[0])):
-      return true
-
 macro unicast*(func): stmt =
-  ## Comes in as DO: proc foo(...) ?? 
   when false:
     echo "Unicast macro accepted parameter: "
     echo treerepr(func[6])
@@ -225,7 +197,7 @@ macro unicast*(func): stmt =
   let messageName = $ f.name.basename
   if not f[3].hasArgumentNamed("entity"):
     f[3].insert(1, newNimNode(nnkIdentDefs).add(
-      !!"entity", newNImNode(nnkVarTy).add(!!"TEntity"), newEmptyNode()))
+      !!"entity", !!"PEntity", newEmptyNode()))
   
   var f_sig_pragma = f.pragma.copy
   f_sig_pragma.add_ident_if_absent "noConv"
@@ -234,7 +206,7 @@ macro unicast*(func): stmt =
     f.params.copy(),
     f_sig_pragma)
   
-  var f_pointer = parse_expr("entity.typeInfo.vtable[messageID(\""& messageName &"\")]")
+  var f_pointer = parse_expr("""entity.typeInfo.vtable[messageID("$#")]""" % messageName)
   
   var f_call_args = newSeq[PNimrodNode]()
   for i in 1 .. <len(f.params):
@@ -272,7 +244,7 @@ macro multicast*(func): stmt {.immediate.} =
   
   if not resultish[3].hasArgumentNamed("entity"):
     resultish[3].insert 1, newNimNode(nnkIdentDefs).add(
-      !!"entity", newNimNode(nnkVarTy).add(!!"TEntity"), newNimNode(nnkEmpty))
+      !!"entity", !!"PEntity", newNimNode(nnkEmpty))
   
   #do what {.unicast.} does with a different body (fooMulti())
   var result_body = newseq[PNimrodNode](0)
@@ -309,28 +281,37 @@ macro multicast*(func): stmt {.immediate.} =
   return newStmtList(
     parseExpr("""isMulticast("$1") = true""" % msg_name),
     resultish)
-  #
 
-proc init (some: PComponentInfo, id, size: int, name: string) =
-  some.id = id
-  some.size = size
-  some.name = name
-  some.unicast_messages = initTable[int, TWeightedUnicastFunc](4)
-  some.multicast_messages = initTable[int, pointer](4)
+proc ensureLen* [T](some: var seq[T]; len: int) {.inline.} =
+  if some.len < len: some.setLen len
 
-proc defComponent* (T: typedesc, name: string = nil) =
+proc requiresComponent*(T: typedesc; requiredComponents: varargs[int, `componentID`]) =
+  let id = componentID(T)
+  let comp = allComponents[id]
+  comp.requiredComponents.add requiredComponents
+  comp.requiredComponents = distnct(comp.requiredComponents)
+  #sort x, cmp[int] #not working??
+  sort comp.requiredComponents, proc(x, y: int): int = cmp(x, y)
+
+proc defComponent* (T: typedesc;
+    name: string = nil) =
   let id = ComponentID(T)
-  if id > len(allComponents)-1:
-    allComponents.setLen id+1
+  allComponents.ensureLen id+1
   
   var thisComponent = allComponents[id]
   if not thisComponent.isNil:
     echo "Overriding component definition for ", thisComponent.name, " with ", name(T)
     quit 1
 
-  var comp: PComponentInfo
-  new comp
-  init comp, id, sizeof(T), name(T)
+  var comp = PComponentInfo(
+    id: id,
+    size: sizeof(T),
+    name: name(T),
+    unicast_messages: initTable[int, TWeightedUnicastFunc](4),
+    multicast_messages: initTable[int, pointer](4),
+    requiredComponents: @[],
+    conflictingComponents: @[]
+  )
   allComponents[id] = comp
 
   if not name.isNil:
@@ -339,7 +320,7 @@ proc defComponent* (T: typedesc, name: string = nil) =
 
 proc componentInfo*(T: typedesc): PComponentInfo =
   let id = componentID(T)
-  result = allComponents[id]
+  return allComponents[id]
 
 
 proc newTypeInfo* (components: seq[int]): PTypeInfo =
@@ -381,7 +362,7 @@ proc getTypeInfo* (manager: var TEntityManager; components: seq[int]): PTypeInfo
     manager.typeInfosTable[components] = result
 
 
-proc instantiate (ty: PTypeInfo, entity: var TEntity): PEntityData = cast[PEntityData](alloc0(ty.instantiatedSize))
+proc instantiate (ty: PTypeInfo, entity: PEntity): PEntityData = cast[PEntityData](alloc0(ty.instantiatedSize))
 
 proc newEntity*(manager: var TEntityManager; components: varargs[int, `componentID`]): TEntity =
   var components = @components
@@ -393,24 +374,28 @@ proc newEntity*(manager: var TEntityManager; components: varargs[int, `component
     if comp.isNil or comp.initializer.isNil: continue
     comp.initializer(result)
 
-proc hasComponent*(entity: var TEntity; T: Typedesc): bool =
+proc hasComponent*(entity: PEntity; T: Typedesc): bool =
   let id = componentID(T)
-  
+  for c in entity.typeInfo.components:
+    if c.id == id: return true
+    if c.id > id: return false
 
-proc get*(entity: var TEntity; T: typedesc): var T =
+proc get*(entity: PEntity; T: typedesc): var T =
   let offset = entity.typeInfo.offsets[componentID(T)]
   return cast[ptr T](entity.data[offset].addr)[]
-proc `[]`*(entity: var TEntity; T: typedesc): var T {.inline.} = get(entity, T)
-proc `[]=`*(entity: var TEntity; ty: typedesc; val: ty) {.inline.} = (entity[ty]) = val
+proc `[]`*(entity: PEntity; T: typedesc): var T {.inline.} = get(entity, T)
+proc `[]=`*(entity: PEntity; ty: typedesc; val: ty) {.inline.} = (entity[ty]) = val
 
 when isMainModule:
-  import math,sequtils
+  import math
   randomize()
   import fowltek/vector_math
   import fowltek/sdl2/engine
   import_all_sdl2_modules
 
   type ## Components
+    TVector2f = TVector2[float]
+    
     TPos = TVector2[float]
     TVel = object
       v: TVector2[float]
@@ -441,10 +426,13 @@ when isMainModule:
     result.y = y.float
   
   defcomponent TPos, "Position"
-  componentInfo(TPos).initializer = proc(entity: var TEntity) =
+  componentInfo(TPos).initializer = proc(entity: PEntity) =
     entity[TPos].x = random(640).float
     entity[TPos].y = random(480).float
   defComponent THealth, "Health"
+  componentInfo(THealth).initializer = proc(entity: PEntity) =
+    entity[THealth] = THealth(hp: 100, max: 100)
+  
   defComponent TBoundingBox, "Bounding Box"
   defComponent TVel, "Velocity"
   defComponent TSpriteInstance, "Sprite"
@@ -452,18 +440,55 @@ when isMainModule:
   type
     TBounded = object
       rect: sdl2.TRect
+      checkEnt: proc(entity: PEntity; bounds: var TBounded)
   
   defComponent TBounded
-  componentInfo(TBounded).initializer = proc(entity: var TEntity) = 
-    entity[TBounded] = TBounded(rect: Rect(0,0,640,480))
+  #TBounded.requiresComponent TPos, TVel
   
-  msg_impl(TBounded, update) do (dt: float):
-    let res = sdl2.point(entity[TPos].x, entity[TPos].y) in entity[TBounded].rect
-    if not res:
-      entity[TPos] = pos(100,100)
-    else: 
-      echo res
-  proc die* () {.unicast.} 
+  proc right*(some: ptr TRect): cint {.inline.} = some.x + some.w
+  proc bottom*(some: ptr TRect): cint {.inline.} = some.y + some.h
+  
+  proc setToroidal(bounds: var TBounded) =
+    bounds.checkEnt = proc(entity: PEntity; bounds: var TBounded) =
+      #discard """
+      let pos = entity[TPos].addr
+      let bounds = bounds.rect.addr
+      if pos.x.cint < bounds.x:
+        pos.x = bounds.right.float
+      elif pos.x.cint > bounds.right:
+        pos.x = bounds.x.float
+      if pos.y.cint < bounds.y:
+        pos.y = bounds.bottom.float
+      elif pos.y.cint > bounds.bottom:
+        pos.y = bounds.y.float
+      # """ 
+  proc toroidalBounds(x, y, w, h: int): TBounded =
+    result.rect = rect(x.cint, y.cint, w.cint, h.cint)
+    result.setToroidal
+ 
+  proc setBouncy(bounds: var TBounded) =
+    bounds.checkEnt = proc(entity: PEntity; bounds: var TBounded) =
+      let pos = entity[TPos].addr  
+      let vel = entity[TVel].v.addr
+      let bounds = bounds.rect.addr
+      template flipReset(field, toVal): stmt =
+        pos.field = toVal
+        vel.field = - vel.field
+      
+      if pos.x.cint < bounds.x:
+        flipReset(x, bounds.x.float)
+      elif pos.x.cint > bounds.right:
+        flipReset(x, bounds.right.float)
+        
+      if pos.y.cint < bounds.y: 
+        flipReset(y, bounds.y.float)
+      elif pos.y.cint > bounds.bottom:
+        flipReset(y, bounds.bottom.float) # """
+  proc bouncyBounds(x, y, w, h: int): TBounded =
+    result.rect = rect(x.cint, y.cint, w.cint, h.cint)
+    result.setBouncy
+       
+ 
   proc takeDamage* (amount: int) {.unicast.}
   
   proc debugStr* (collection: var seq[string]) {.multicast.}
@@ -471,6 +496,10 @@ when isMainModule:
   
   msg_impl(TVel, update) do(dt: float):
     entity[TPos] += entity[TVel].v
+  
+  msg_impl(TBounded, update) do (dt: float):
+    entity[TBounded].checkEnt entity, entity[TBounded]
+  
   
   template debugStrImpl(ty): stmt =
     msg_impl(ty, debugStr) do(result: var seq[string]):
@@ -481,27 +510,42 @@ when isMainModule:
   debugStrImpl(TSpriteInstance)
   debugStrImpl(TBoundingBox)
   
-  proc debugStr*(entity: var TEntity): seq[string] {.inline.}=
+  proc debugStr*(entity: PEntity): seq[string] {.inline.}=
     result = @[]
     entity.debugStr(result)
+  
+  var EM = newEntityManager()
+  var entities = newSeq[TEntity](0)
+  
+  var reaper: tuple[souls: seq[int]]
+  reaper.souls = @[]
+  proc reap =
+    if len(reaper.souls) > 0:
+      reaper.souls.sort cmp[int]
+      for i in countdown(<len(reaper.souls), 0):
+        entities.del reaper.souls[i]
+      reaper.souls.setLen 0
+  
+  proc die(entity: PEntity) =
+    let e = entity.addr
+    for i in 0 .. < entities.len:
+      if e == entities[i].addr:
+        reaper.souls.add i
+        return
   
   msg_impl(THealth, takeDamage) do(amount: int) :
     entity[THealth].hp -= amount
     if entity[THealth].hp <= 0:
       entity.die()
-    echo "Entity took damage, now at ", entity[THealth].hp
   
   
   proc debugDraw(R: sdl2.PRenderer) {.multicast.}
   msg_impl(TPos, debugDraw) do(R: PRenderer) :
     #stringRGBA(R, entity[TPos].x.int16, entity[TPos].y.int16, $entity[TPos],
     #  255,0,0,255)
-    let s = $entity[TPos]
     let p = entity[TPos]
+    let s = $p #entity.debugStr
     R.stringRGBA(p.x.int16, p.y.int16, s, 255,0,0,255)
-  
-  var EM = newEntityManager()
-  var entities = newSeq[TEntity](0)
   
   proc create_a_bunch_of_ents(num = 10) =
     ## component ids are 0 - 5
@@ -512,23 +556,61 @@ when isMainModule:
       entities.add(em.newEntity(distnct(ids)))
       ids.setLen 0
   
-  discard """ create_a_bunch_of_ents()
+  discard """ 
+  create_a_bunch_of_ents()
   
   # see what some of them have..
   for i in 0 .. <4:
     let id = random(<len(entities))
     echo "entity #",id, ": ", entities[id].debugStr.join(", ")
   """
-  for i in 0 .. < 5:
-    entities.add(em.newEntity(TPos, TVel, THealth, TBounded))
-    template lastEnt : expr = entities[< entities.len]
-    lastEnt[TVel].v.x = 1.0
   
   var engy = newSdlEngine()
+  
+  block:
+    let winsize = vec2[int](engy.window.getSize.x, engy.window.getSize.y)
+    componentInfo(TBounded).initializer = proc(entity: PEntity) = entity[TBounded] = ToroidalBounds(0, 0, winSize.x, winSize.y)
+  
+  
+  type
+    TBoundingCircle = object
+      radius: float
+  defComponent TBoundingCircle
+  proc checkCollision*(entity2: PEntity): bool {.unicast.} 
+  msg_impl(TBoundingCircle, checkCollision) do(entity2: PEntity) -> bool:
+    return entity[TPos].distance(entity2[TPos]) < entity[TBoundingCircle].radius + entity2[TBoundingCircle].radius
+  msg_impl(TBoundingCircle, debugDraw) do(R: PRenderer):
+    let pos = entity[TPos].addr
+    let radius = entity[TBoundingCircle].addr
+    R.circleRGBA pos.x.int16, pos.y.int16, radius.radius.int16, 255,0,0,255
+  
+  proc handleCollision*(withEntity: PEntity) {.unicast.}
+  msg_impl(THealth, handleCollision) do(withEntity: PEntity):
+    entity.takeDamage 1
   
   ## https://github.com/Araq/Nimrod/issues/431
   echo "Number of unicast messages: ", numMessages, " should be 2"
   echo "Number of components: ", numComponents
+  
+  proc deg2rad* (some: int): float {.inline.} = some.float * pi / 180.0
+  
+  proc vectorForAngle(radians: float): TVector2f {.inline.} = (x: cos(radians), y: -sin(radians))
+  
+  proc randomize (some: var TVel, within: float) {.inline.} =
+    let angle = random(360).deg2rad
+    
+    some.v.x = cos(angle) * within
+    some.v.y = -sin(angle) * within
+  
+  proc mkAsteroid*(size = 8 .. 20) =
+    entities.add(em.newEntity(TPos, TVel, THealth, TBounded, TBoundingCircle))
+    template lastEnt : expr = entities[< entities.len]
+    lastEnt[TVel].randomize 2.0
+    lastEnt[TVel].v.x = 1.0
+    lastEnt[TBoundingCircle].radius = random(size).float
+    if random(10) == 0: lastEnt[TBounded].setBouncy
+  
+  for i in 0.. <30: mkAsteroid()
   
   template eachEntity(body: stmt): stmt {.immediate.} =
     for e_id in 0 .. <len(entities):
@@ -546,6 +628,17 @@ when isMainModule:
     let dtf = engy.frameDeltaFLT()
     eachEntity: 
       entity.update dtf
+    # check collisions
+    let h = < entities.len
+    for e1 in 0 .. <h:
+      let e1_d = entities[e1].addr
+      for e2 in e1+1 .. h:
+        if e2 > <entities.len: quit "Bad num $# max $#"% [$e2, $entities.len]
+        if e1_d[].checkCollision(entities[e2]):
+          e1_d[].handleCollision(entities[e2])
+          entities[e2].handleCollision(e1_d[])
+    
+    reap()
     
     engy.setDrawColor 0,0,0,255
     engy.clear

@@ -900,6 +900,7 @@ proc GetPosition*(window: PWindow; x, y: var cint)  {.importc: "SDL_GetWindowPos
 #*
 proc SetSize*(window: PWindow; w, h: cint)  {.importc: "SDL_SetWindowSize".}
 proc GetSize*(window: PWindow; w, h: var cint) {.importc: "SDL_GetWindowSize".}
+proc GetSize*(window: PWindow): TPoint {.inline.} = getSize(window, result.x, result.y)
 
 proc SetBordered*(window: PWindow; bordered: bool32) {.importc: "SDL_SetWindowBordered".}
 #
@@ -1226,4 +1227,4 @@ proc Point*[T: TNumber](x, y: T): TPoint = (x.cint, y.cint)
 
 proc Contains*(some: TRect; point: TPoint): bool = 
   return point.x >= some.x and point.x <= (some.x + some.w) and
-    point.y >= some.y and point.y <= (some.y + some.h)
+          point.y >= some.y and point.y <= (some.y + some.h)

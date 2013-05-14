@@ -117,10 +117,20 @@ proc `!!`*(a: string): PNimrodNode {.compileTime, inline.} = newIdentNode(a)
 proc newIdentDefs*(name, kind: PNimrodNode; default = newEmptyNode()): PNimrodNode{.
   compileTime.} = newNimNode(nnkIdentDefs).und(name, kind, default)
 
+proc newBlockStmt*(label: PNimrodNode = nil, statements: varargs[PNimrodNode] = []): PNimrodNode {.compiletime.} =
+  return newNimNode(nnkBlockStmt).add(
+    if label.isNil: newNimNode(nnkEmpty) 
+    else: label,
+    newStmtList(statements))
+proc newLetStmt*(name, value: PNimrodNode): PNimrodNode{.compiletime.} =
+  return newNimNode(nnkLetSection).add(
+    newNimNode(nnkIdentDefs).add(name, newNimNode(nnkEmpty), value))
+
+
 iterator children*(n: PNimrodNode): PNimrodNode {.inline.}=
   for i in 0 .. high(n):
     yield n[i]
-    
+
 template first*(n: PNimrodNode; cond: expr): PNimrodNode {.immediate, dirty.} =
   ## Find the first node matching condition (or nil)
   ## first(n, it.kind == nnkPostfix and it.basename.ident == !"foo")
@@ -202,6 +212,28 @@ proc unpackInfix*(node: PNimrodNode): tuple[left: PNimrodNode; op: string; right
 
 proc copy*(node: PNimrodNode): PNimrodNode {.compileTime.} = 
   return node.copyNimTree()
+
+
+## From here on are functions that should be renamed maybe
+
+proc eqIdent* (a, b: string): bool = cmpIgnoreStyle(a, b) == 0
+  ## Check if two idents are identical
+
+proc has_argument_named* (params: PNimrodNode; name: string): bool {.compiletime.}=
+  assert params.kind == nnkFormalParams
+  for i in 1 .. <params.len: 
+    template node: expr = params[i]
+    if name.eqIdent( $ node[0]):
+      return true
+
+proc add_ident_if_absent* (dest: PNimrodNode, ident: string) {.compiletime.} =
+  for i in 0 .. <len(dest):
+    template node: expr = dest[i]
+    if node.kind == nnkIdent and ident.eqIdent($node):
+      return
+  dest.add(!!ident)
+
+
 
 when isMainModule:
   macro basenameTest(arg: expr): stmt {.immediate.} =
