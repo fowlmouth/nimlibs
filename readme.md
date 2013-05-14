@@ -1,10 +1,10 @@
 This is a collection of useful Nimrod modules. 
 
 ## Modules
-* vector_math.nim - implements types for vectors of two, three and four
-* components.nim - implements a component/entity system 
-* pointer_arithm.nim - implements pointer arithmetic for use with c libraries
-* tmaybe.nim - implements a `Maybe[T]` 
+* fowltek/vector_math - implements types for vectors of two, three and four
+* fowltek/entitty - implements a dynamic component/entity system
+* fowltek/pointer_arithm - implements pointer arithmetic for use with c libraries
+* fowltek/tmaybe - implements a `Maybe[T]` 
 
 ## Wrappers
 * SDL2 [http://libsdl.org]
