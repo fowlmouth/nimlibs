@@ -13,18 +13,19 @@ const
   IMG_INIT_TIF* = 0x00000004 
   IMG_INIT_WEBP* = 0x00000008
 
-
 {.push callconv:cdecl, dynlib: libName.}
+
 
 #import fowltek/importc_block
 #importcizzle "IMG_":
 proc IMG_Linked_Version*(): ptr SDL_version {.importc: "IMG_Linked_Version".}
-
+proc Linked_Version* : ptr SDL_version {.importc: "IMG_$1".}
 
 proc IMG_Init*(flags: cint = IMG_INIT_JPG or IMG_INIT_PNG): cint {.
   importc: "IMG_Init".}
   ## It returns the flags successfully initialized, or 0 on failure.
   ## This is completely different than SDL_Init() -_-
+proc Init*(flags: cint = IMG_INIT_JPG or IMG_INIT_PNG): cint {.importc: "IMG_$1".}
 
 proc IMG_Quit*() {.importc: "IMG_Quit".}
 # Load an image from an SDL data source.

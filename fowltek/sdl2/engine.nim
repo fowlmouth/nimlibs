@@ -76,6 +76,18 @@ proc delay*(some: var TSdlEngine; ms: uint32) {.inline.} =
 converter toRenderer*(some: var TSdlEngine): sdl2.PRenderer = some.render
 
 
+import fowltek/vector_math, math
+
+proc degrees2radians*(deg: float): float {.inline.} = deg * pi / 180.0
+proc radians2degrees*(rad: float): float {.inline.} = (rad * 180.0 / PI) mod 360.0
+
+## these functions are intended to work with sdl's coordinate system 
+proc vectorToAngle* (some: TVector2[float]): float = arctan2(-some.y, some.x)
+  # return the angle in radians
+proc vectorForAngle*(radians: float): TVector2[float] {.inline.} = (x: cos(radians), y: sin(-radians))
+  # return the vector for given radians
+
+
 when isMainModule:
   var e = newSDLengine(sizeX = 640, sizeY = 480)
   var running = true

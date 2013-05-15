@@ -539,6 +539,8 @@ proc CreateTexture*(renderer: PRenderer; format: Uint32;
 
 proc CreateTextureFromSurface*(renderer: PRenderer; surface: PSurface): PTexture {.
   importc: "SDL_CreateTextureFromSurface".}
+proc CreateTexture*(renderer: PRenderer; surface: PSurface): PTexture {.
+  inline.} = renderer.createTextureFromSurface(surface) 
 
 proc QueryTexture*(texture: PTexture; format: ptr Uint32; 
   access, w, h: ptr cint): SDL_Return {.importc: "SDL_QueryTexture".}
