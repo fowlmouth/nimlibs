@@ -4,6 +4,7 @@ import macros, fowltek/macro_dsl
 
 when NimrodVersion != "0.9.1":
   {.error "Please to use the Live Nimrod off the Git Head. A thank you <3".}
+{.deadCodeElim: on.}
 
 const
   Issue431_Offset = 30 # offset added to numbers affected by nimrod issue 431 (temp, unscaling hack)  
@@ -28,11 +29,12 @@ type
   PTypeInfo* = ptr TTypeInfo
   TTypeInfo* = object
     components: seq[PComponentInfo]
-    offsets: seq[int]
+    offsets*: seq[int]
     instantiatedSize: int
 
     vtable*: seq[pointer]
     multicast*: seq[seq[pointer]] ## [msg_id][functions] 
+    initializers*: seq[proc(entity: PEntity)] 
     
     validType: bool
     whatsTheProblem: string
@@ -61,9 +63,7 @@ template idCounter(name, varname): stmt =
     result = varname
     inc varname
 idCounter MessageID, numMessages
-idCounter ComponentID, numComponents
-
-
+var numComponents* = 0
 
 macro msg_impl* : stmt {.immediate.} =
   # Implements a message for a component
@@ -181,9 +181,30 @@ macro msg_impl* : stmt {.immediate.} =
   result = newBlockStmt(label = nil, statements = result_body)
   
   when defined(Debug):  echo repr(result)
-  
+
+proc nextComponentID*(T: typedesc): int = 
+  result = numComponents
+  inc numComponents
+  allComponents.ensureLen(result+1)
+
+
+  var comp = PComponentInfo(
+    id: result,
+    size: sizeof(T),
+    name: name(T),
+    unicast_messages: initTable[int, TWeightedUnicastFunc](4),
+    multicast_messages: initTable[int, pointer](4),
+    requiredComponents: @[],
+    conflictingComponents: @[]
+  )
+  allComponents[result] = comp
+
+  when defined(DEBUG):
+    echo "Component #$# declared `$#`".format(comp.id, comp.name)
+
+
 proc componentID*(T: typedesc): int =
-  var id {.global.} = nextComponentID()
+  var id {.global.} = nextComponentID(T)
   return id
 proc findComponent(s: string): int = 
   for c in allComponents:
@@ -303,6 +324,7 @@ proc requiresComponent*(T: typedesc; requiredComponents: varargs[int, `component
   #sort comp.requiredComponents, cmp[int] #not working??
   sort comp.requiredComponents, proc(x, y: int): int = cmp(x, y)
 
+discard """
 proc defComponent* (T: typedesc;
     name: string = nil) =
   let id = ComponentID(T)
@@ -329,12 +351,21 @@ proc defComponent* (T: typedesc;
   
   when defined(DEBUG):
     echo "Component #$# declared `$#`".format(comp.id, comp.name)
+"""
 
+macro component*: stmt =
+  ## type Foo {.component.} = object ...
+  ## (when nimrod supports it)
+  let cs = callsite()
+  echo treerepr(cs)
+  quit "component() macro is not implemented yet"
 
 proc componentInfo*(T: typedesc): PComponentInfo =
   let id = componentID(T)
   return allComponents[id]
 
+template unless*(cond; body: stmt): stmt {.dirty.} =
+  if not cond: body
 
 proc newTypeInfo* (components: seq[int]): PTypeInfo =
   let numThisComponents = components.len
@@ -347,6 +378,7 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
   echo "typeinfo initialized for ", nummessages, " messages ", repr(components)
   newSeq result.vtable, numMessages+Issue431_Offset
   newSeq result.multicast, numMessages+Issue431_Offset
+  newSeq result.initializers, 0
   var unicastWeights = newSeq[int](numMessages+Issue431_Offset)
   var requiredComponents = newSeq[int](0)
   
@@ -365,7 +397,10 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
         newSeq result.multicast[idx], 0
       result.multicast[idx].add msg
 
-    requiredComponents.add result.components[index].requiredComponents
+    template thisComponent: expr = result.components[index]
+    requiredComponents.add thisComponent.requiredComponents
+    unless thisComponent.initializer.isNil:
+      result.initializers.add thisComponent.initializer
 
   result.instantiatedSize = offs
 
@@ -394,13 +429,22 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
 proc newEntityManager*: TEntityManager = 
   result.typeInfosTable = initTable[seq[int],PTypeInfo](512)
 
-proc getTypeInfo* (manager: var TEntityManager; components: seq[int]): PTypeInfo =
-  ## get the typeinfo record for a set of components
-  result = manager.typeInfosTable[components]
-  if result.isNil:
-    #echo "Creating new typeinfo."
-    result = newTypeInfo(components)
-    manager.typeInfosTable[components] = result
+when true:
+  proc getTypeInfo* (manager: var TEntityManager; components: varargs[int, `componentID`]): PTypeInfo =
+    var components = @components
+    components.sort cmp[int]
+    result = manager.typeInfosTable[components]
+    if result.isNil:
+      result = newTypeInfo(components)
+      manager.typeInfosTable[components] = result
+else:
+  proc getTypeInfo* (manager: var TEntityManager; components: seq[int]): PTypeInfo =
+    ## get the typeinfo record for a set of components
+    result = manager.typeInfosTable[components]
+    if result.isNil:
+      #echo "Creating new typeinfo."
+      result = newTypeInfo(components)
+      manager.typeInfosTable[components] = result
 
 
 proc summary* (ty: PTypeInfo): string = 
@@ -426,10 +470,14 @@ proc newEntity*(typeinfo: PTypeInfo): TEntity =
     if comp.isNil or comp.initializer.isNil: continue
     comp.initializer(result)
 
-proc newEntity*(manager: var TEntityManager; components: varargs[int, `componentID`]): TEntity =
-  var components = @components
-  components.sort cmp[int]
-  return manager.getTypeInfo(components).newEntity
+when true:
+  proc newEntity*(manager: var TEntityManager; components: varargs[int, `componentID`]): TEntity = 
+    return manager.getTypeInfo(components).newEntity
+else:
+  proc newEntity*(manager: var TEntityManager; components: varargs[int, `componentID`]): TEntity =
+    var components = @components
+    components.sort cmp[int]
+    return manager.getTypeInfo(components).newEntity
 
 proc destroy* (some: PEntity) {.inline.} =
   dealloc some.data

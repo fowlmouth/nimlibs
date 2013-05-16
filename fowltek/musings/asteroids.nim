@@ -34,14 +34,18 @@ proc draw(R: sdl2.PRenderer) {.multicast.}
 proc debugStr* (collection: var seq[string]) {.multicast.}
 proc debugDraw(R: sdl2.PRenderer) {.multicast.}
 
+var debugDrawDisabled: array[0 .. <100, bool]
+template disableDebugDraw(ty): stmt = debugDrawDisabled[componentID(ty)] = true
+
+
 type
-  Position* = TVector2[float]
+  Position*  = TVector2[float]
 
 proc pos*[A: TNumber](x, y: A): Position =
   result.x = x.float
   result.y = y.float
 
-defcomponent Position
+#defcomponent Position
 Position.setInitializer  proc(entity: PEntity) =
   entity[Position].x = random(640).float
   entity[Position].y = random(480).float
@@ -52,7 +56,7 @@ msg_impl(Position, placeAt) do (pos: TVector2f):
 type
   Orientation* = object
     angleRadians: float
-defComponent Orientation
+#defcomponent Orientation
 
 
 proc die(entity: PEntity)
@@ -61,7 +65,7 @@ type
   Health = object
     hp, max: int
 
-defComponent Health
+#defcomponent Health
 Health.setInitializer proc(entity: PEntity) =
   entity[Health] = Health(hp: 100, max: 100)
 
@@ -71,7 +75,7 @@ msg_impl(Health, takeDamage) do(amount: int) :
     entity.die
 
 type Immortal = object
-defComponent Immortal
+#defcomponent Immortal
 
 msg_impl(Immortal, takeDamage, 9001) do(amount: int):
   #nope
@@ -81,7 +85,7 @@ type
     v: TVector2[float]
     max: float
 
-defComponent Velocity
+#defcomponent Velocity
 Velocity.requiresComponent Position
 
 msg_impl(Velocity, update) do(dt: float):
@@ -89,7 +93,7 @@ msg_impl(Velocity, update) do(dt: float):
 
 type Friction = object
   f: float
-defComponent Friction
+#defcomponent Friction
 Friction.requiresComponent Velocity
 Friction.setInitializer proc(x: PEntity) = 
   x[Friction].f = 1.0
@@ -111,7 +115,7 @@ type
 
 proc `$`*(some: Sprite): string = (
   if some.sprite.isNil: "nil"  else: some.sprite.file )
-defComponent Sprite, "Sprite"
+#defcomponent Sprite, "Sprite"
 Sprite.requiresComponent Position
 
 
@@ -172,7 +176,7 @@ proc nextFrame* (some: var SimpleAnimation, sprite: var Sprite) {. inline.} =
   some.timer = some.currentFrame.delay
   sprite.rect.x = cint(sprite.rect.w * some.currentFrame.frame)
 
-defComponent SimpleAnimation
+#defcomponent SimpleAnimation
 SimpleAnimation.requiresComponent Sprite
 SimpleAnimation.setInitializer proc(x: PEntity) =
   ## sets up an animation to run through all columns
@@ -192,32 +196,6 @@ proc newSimpleAnimation* (frames: varargs[TFrameDelay]): SimpleAnimation =
   result = SimpleAnimation(frameDelays: @frames)
   result.timer = result.frameDelays[0].delay
 
-type RollAnimation = object 
-  roll: float
-defComponent RollAnimation
-RollAnimation.requiresComponent Sprite, Orientation
-#RollAnimation.conflictsWith SimpleAnimation
-
-proc roll(amount: float) {.unicast.}
-msg_impl(RollAnimation, roll) do(amount: float):
-  entity[RollAnimation].roll += amount
-  if entity[RollAnimation].roll > 1: entity[RollAnimation].roll = 1
-  elif entity[RollAnimation].roll < -1: entity[RollAnimation].roll = -1
-
-msg_impl(RollAnimation, update) do(dt: float):
-  let spr = entity[Sprite].addr
-  # in a roll sprite the rows are angles
-  let row = ((entity[Orientation].angleRadians.radians2degrees / 360.0) * entity[Sprite].sprite.rows.float).int
-  entity[Sprite].rect.y = cint(row * entity[Sprite].rect.h)
-  let cols = entity[Sprite].sprite.cols
-  let midCol = floor(cols / 2)
-  #echo "midcol is ", midcol.int
-  #echo "calculated column is ", cint(midCol + (midCol * entity[RollAnimation].roll))
-  #echo "roll is ", ff(entity[RollAnimation].roll) 
-  entity[Sprite].rect.x = cint(midCol + (midCol * entity[RollAnimation].roll)) * entity[Sprite].sprite.defaultRect.w
-  #entity[Sprite].rect.x = cint(col * entity[Sprite].rect.w)
-  entity[RollAnimation].roll *= 0.9
-
 
 
 type
@@ -228,7 +206,7 @@ type
   DeathCallback = object
     cb: TEntCallback
 
-defComponent DeathCallback
+#defcomponent DeathCallback
 DeathCallback.setInitializer proc(x: PEntity) = x[DeathCallback].cb = callback_nop
 
 msg_impl(DeathCallback, onDeath) do:
@@ -242,7 +220,7 @@ type # Keeps an entity within a boundary
 
 
 
-defComponent Bounded
+#defcomponent Bounded
 Bounded.requiresComponent Position, Velocity
 
 proc right*(some: ptr TRect): cint {.inline.} = some.x + some.w
@@ -300,7 +278,7 @@ type
 
 proc inputNop (entity: PEntity; event: var TEvent; result: var bool) = nil
 
-defComponent InputCB
+#defcomponent InputCB
 InputCB.setInitializer proc(X: PEntity) = 
   X[InputCB].handler = inputNop
 msg_impl(InputCB, handleEvent) do (event: var TEvent; result: var bool):
@@ -310,7 +288,7 @@ msg_impl(InputCB, handleEvent) do (event: var TEvent; result: var bool):
 
 type CollisionHandler = object
   handler: proc(entity1, entity2: PEntity)
-defComponent CollisionHandler
+#defcomponent CollisionHandler
 CollisionHandler.setInitializer proc(x: PEntity) =
   x[CollisionHandler].handler = proc(a,b: PEntity) = nil
 msg_impl(CollisionHandler, handleCollision, 1000) do (withEntity: PEntity):
@@ -318,13 +296,16 @@ msg_impl(CollisionHandler, handleCollision, 1000) do (withEntity: PEntity):
 
 
 type
-  TTurn {.pure.} = enum
+  TTurn* {.pure.} = enum
     None, Right, Left
-  TThrust{.pure.}= enum
+  TThrust*{.pure.}= enum
     Idle, Forward, Reverse
-  InputState = object
+  InputState* = object
     turning: TTurn
     thrust: TThrust
+
+
+proc roll(dir: TTurn) {.unicast.}
 
 proc add*(some: var Velocity; vector: TVector2f) = 
   some.v += vector
@@ -336,7 +317,7 @@ proc add*(some: var Velocity; vector: TVector2f) =
 proc turn* (dir: TTurn; activate = true) {.unicast.}
 proc thrust* (dir: TThrust; activate = true) {.unicast.}
 
-defComponent InputState
+#defcomponent InputState
 InputState.requiresComponent Position, Velocity, Orientation
 msg_impl(InputState, turn) do (dir: TTurn; activate: bool):
   let s = entity[InputState].addr
@@ -355,10 +336,10 @@ msg_impl(InputState, update) do(dt: float):
   case entity[InputState].turning
   of TTurn.Right: 
     entity[Orientation].angleRadians += 2.0.degrees2radians
-    entity.roll 0.02
+    entity.roll TTurn.Right
   of TTurn.Left:  
     entity[Orientation].angleRadians -= 2.0.degrees2radians
-    entity.roll( -0.02 )
+    entity.roll TTurn.Left
   else: nil
   case entity[InputState].thrust
   of TThrust.Forward: 
@@ -366,6 +347,33 @@ msg_impl(InputState, update) do(dt: float):
   of TThrust.Reverse: 
     entity[Velocity].add(- vectorForAngle(entity[Orientation].angleRadians))
   else: nil
+
+
+type RollAnimation = object 
+  roll: float
+#defcomponent RollAnimation
+RollAnimation.requiresComponent Sprite, Orientation
+#RollAnimation.conflictsWith SimpleAnimation
+
+msg_impl(RollAnimation, roll) do(dir: TTurn):
+  let amount = if dir == TTurn.right: -0.1 else: 0.1
+  entity[RollAnimation].roll += amount 
+  if entity[RollAnimation].roll > 1: entity[RollAnimation].roll = 1
+  elif entity[RollAnimation].roll < -1: entity[RollAnimation].roll = -1
+
+msg_impl(RollAnimation, update) do(dt: float):
+  let spr = entity[Sprite].addr
+  # in a roll sprite the rows are angles
+  let row = ((entity[Orientation].angleRadians.radians2degrees / 360.0) * entity[Sprite].sprite.rows.float).int
+  entity[Sprite].rect.y = cint(row * entity[Sprite].rect.h)
+  let cols = entity[Sprite].sprite.cols
+  let midCol = floor(cols / 2)
+  #echo "midcol is ", midcol.int
+  #echo "calculated column is ", cint(midCol + (midCol * entity[RollAnimation].roll))
+  #echo "roll is ", ff(entity[RollAnimation].roll) 
+  entity[Sprite].rect.x = cint(midCol + (midCol * entity[RollAnimation].roll)) * entity[Sprite].sprite.defaultRect.w
+  #entity[Sprite].rect.x = cint(col * entity[Sprite].rect.w)
+  entity[RollAnimation].roll *= 0.9
 
 
 template debugStrImpl(ty): stmt =
@@ -411,11 +419,7 @@ proc die(entity: PEntity) =
 proc vec2short* [T](vec: TVector2[T]): TVector2[int16] {.
   inline.} = vec2[int16]( vec.x.int16, vec.y.int16)
 
-var debugDrawDisabled: array[0 .. <100, bool]
-template disableDebugDraw(ty): stmt = debugDrawDisabled[componentID(ty)] = true
 
-disableDebugDraw Velocity
- 
 template debugDrawImpl (ty: expr, body: stmt): stmt {.immediate.}  =
   msg_impl(ty, debugDraw) do(R: PRenderer):
     if debugDrawDisabled[componentID(ty)]: return
@@ -442,7 +446,7 @@ block:
 
 type DebugInfoDisp = object
   result: seq[string]
-defComponent DebugInfoDisp
+#defcomponent DebugInfoDisp
 DebugInfoDisp.setInitializer proc(x: PEntity) =
   newSeq x[DebugInfoDisp].result, 0
 debugDrawImpl( DebugInfoDisp):
@@ -458,7 +462,7 @@ type
     discriminant: TCollisionDiscriminant
     radius: float
 
-defComponent BoundingCircle
+#defcomponent BoundingCircle
 BoundingCircle.requiresComponent Position
 
 proc checkCollision*(entity2: PEntity): bool {.unicast.} 
@@ -481,6 +485,9 @@ msg_impl(Health, handleCollision) do(withEntity: PEntity):
 
 
 
+disableDebugDraw Velocity
+disableDebugDraw Position
+disableDebugDraw BoundingCircle
 
 ## https://github.com/Araq/Nimrod/issues/431
 echo "Number of unicast messages: ", numMessages, " should be about 10 "
