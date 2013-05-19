@@ -2,7 +2,7 @@
 when defined(Linux):
   const LibName = "libSDL2_ttf.so"
 
-import sdl2
+import fowltek/sdl2
 
 type
   PFont* = ptr object{.pure.}

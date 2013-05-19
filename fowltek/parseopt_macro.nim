@@ -19,28 +19,28 @@ macro parseOptions*(body: stmt): stmt {.immediate.}=
       opts.add((flags, n[n.len-1].body)) #n[n.len-1].body is the stmtlist of the `do` attached
       # to the command
       
-  var resCase = newNimNode(nnkCaseStmt).und(!!"key")
+  var resCase = newNimNode(nnkCaseStmt).add(!!"key")
   for o in opts:
     var c = newNimNode(nnkOfBranch)
     for f in o.flags: c.add newStrLitNode(f)
     c.add o.body
     resCase.add c
-  resCase.add(newNimNode(nnkElse).und(quote do:
+  resCase.add(newNimNode(nnkElse).add(quote do:
     echo "Unrecognized option: ", key))
 
   result = parseStmt("when not defined(getOpt): import parseopt").add(
-    newNimNode(nnkForStmt).und(
+    newNimNode(nnkForStmt).add(
       !!"kind",
       !!"key",
       !!"value",
       newCall("getOpt"),
       newStmtList(
-        newNimNode(nnkCaseStmt).und(
+        newNimNode(nnkCaseStmt).add(
           !!"kind",
-          newNimNode(nnkOfBranch).und(
+          newNimNode(nnkOfBranch).add(
             !!"cmdLongOption", !!"cmdShortOption",
             newStmtList(resCase)),
-          newNimNode(nnkElse).und(newNimNode(nnkNilLit)))))
+          newNimNode(nnkElse).add(newNimNode(nnkNilLit)))))
   )
   
   when defined(Debug):

@@ -16,11 +16,11 @@ macro importCizzle*(prefixx: string; body: stmt): stmt {.immediate.}=
     
     case s.kind
     of nnkProcDef:
-      if s.pragma.isEmpty:
+      if s.pragma.kind == nnkEmpty:
         s.pragma = newNimNode(nnkPragma)
       
       
-      s[4].add(newNimNode(nnkExprColonExpr).und(
+      s[4].add(newNimNode(nnkExprColonExpr).add(
         !!"importc", newStrLitNode(prefix & $ident(basename(name(s))))))
       
       result.add s

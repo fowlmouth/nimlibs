@@ -54,15 +54,15 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
     echo("typ is nil! ", treerepr(typp))
     quit(1)
   
-  result.add newNimNode(nnkTypeSection).und(
-    newNimNode(nnkTypeDef).und(
-      newNimNode(nnkPostfix).und(!!"*", typ),
+  result.add newNimNode(nnkTypeSection).add(
+    newNimNode(nnkTypeDef).add(
+      newNimNode(nnkPostfix).add(!!"*", typ),
       newEmptyNode(),
-      newNimNode(nnkRefTy).und(
-        newNimNode(nnkObjectTy).und(
+      newNimNode(nnkRefTy).add(
+        newNimNode(nnkObjectTy).add(
           newEmptyNode(),
           if parent.isNil: newEmptyNode()
-          else: newNimNode(nnkOfInherit).und(parent),
+          else: newNimNode(nnkOfInherit).add(parent),
           thisRecd))))
   
   var 
@@ -79,18 +79,18 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
     of nnkProcDef, nnkMethodDef:
       let procname = statement.name.baseName
       var 
-        selfFound = false
+        selfFoadd = false
         params = statement[3]
       
       if procname.kind == nnkIdent and procname.ident == constructorName:
         constructorImplemented = true
-        selfFound = true
+        selfFoadd = true
       
-      if not selfFound and params.len > 1:
+      if not selfFoadd and params.len > 1:
         ##try to find self
         for i in 1..params.len - 1:
           if params[i][0].ident == !"self":
-            selfFound = true
+            selfFoadd = true
             break
       
       if statement[4].kind == nnkPragma:
@@ -102,21 +102,21 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
           if pragmas[i].kind == nnkIdent:
             if pragmas[i].ident == !"constructor":
               constructorImplemented = true
-              ## set self found to true so it wont be added to args
-              selfFound = true
+              ## set self foadd to true so it wont be added to args
+              selfFoadd = true
               pragmas.del i
             elif pragmas[i].ident == !"noself":
-              selfFOund = true
+              selfFOadd = true
               pragmas.del i
             else:
               inc i
           else:
             inc i
       
-      if not selfFound:  ##including the return type
+      if not selfFoadd:  ##including the return type
         ##inject self: type into the params
         insert(params,
-               newNimNode(nnkIdentDefs).und(!!"self", typ, newEmptyNode()), 
+               newNimNode(nnkIdentDefs).add(!!"self", typ, newEmptyNode()), 
                1)
       result.add statement
       
@@ -124,7 +124,7 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
       if statement[0].ident == !"subclass":
         #change it to classimpl(name, type < this): body
         statement[0].ident= !"classimpl"
-        statement[2] = newNimNode(nnkInfix).und(!!"<", statement[2], typ)
+        statement[2] = newNimNode(nnkInfix).add(!!"<", statement[2], typ)
         
       result.add statement
       
@@ -137,9 +137,9 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
     constructor, cbody: PNimrodNode
   if not constructorImplemented:
     constructor = newProc(
-      newNimNode(nnkPostfix).und(!!"*", !constructorName),
+      newNimNode(nnkPostfix).add(!!"*", !constructorName),
       params = [typ])
-    cbody = newNimNode(nnkStmtList).und(newCall("new", !!"result"))
+    cbody = newNimNode(nnkStmtList).add(newCall("new", !!"result"))
   
   for i in 0 .. high(thisRecd):
     ##iterate over each field
@@ -152,7 +152,7 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
                else: thisRecd[i][0]
       arg[0] = name
       constructor[3].add arg
-      cbody.add((!!"result").dot(name) <- name)
+      cbody.add((!!"result").newDotExpr(name).newAssignment(name))
     ##clear any default values
     thisRecd[i][2] = newEmptyNode()
     
