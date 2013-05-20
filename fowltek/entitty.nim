@@ -115,7 +115,7 @@ macro msg_impl* : stmt {.immediate.} =
       case fromNode.kind
       of nnkStmtList:
         result = newProc(procType = nnkDo, body = fromNode)
-      of macro_dsl.procLikeNodes: 
+      of routineNodes: 
         result = fromNode
       else:
         quit "Invalid parameter kind: $# \n $#" % [$fromNode.kind, lispRepr(fromNode)]

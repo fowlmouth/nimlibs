@@ -27,7 +27,7 @@ proc newNode*[T] (bounds: TBounds; depth, maxDepth, maxChildren: int) : PNode[T]
   )
 
 proc QuadTree*[T](bounds: TBounds; maxDepth = 4; maxChildren = 1): TQuadTree[T] =
-  result = TQuadTree[T](root: newNode[T](bounds, 0, maxDepth, maxChildren)
+  result = TQuadTree[T](root: newNode[T](bounds, 0, maxDepth, maxChildren))
 
 proc findNodeFor*[T] (node: PNode[T]; pos: TVector2f): PNode[T] =
   let left = (if pos.x > node.bounds.x + node.bounds.w / 2: false else: true)
@@ -95,7 +95,7 @@ proc retrieve* [T] (tree: var TQuadTree[T]; bounds: TBounds): seq[TItem[T]] =
   result.newSeq 0
   tree.root.retrieve bounds, result
 
-proc bounds [T](x, y, w, h: T): TBounds {.inline.} = (x.float, y.float, w.float, h.float)
+proc bounds* [T](x, y, w, h: T): TBounds {.inline.} = (x.float, y.float, w.float, h.float)
 proc right* (some: TBounds): float {.inline.} = some.x + some.w
 proc bottom*(some: TBounds): float {.inline.} = some.y + some.h
 proc top* (some: TBounds): float {.inline.} = some.y
