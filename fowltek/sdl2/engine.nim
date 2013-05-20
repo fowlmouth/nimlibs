@@ -6,7 +6,7 @@ import fowltek/sdl2, fowltek/sdl2/gfx
 import fowltek/tmaybe, unsigned
 
 template import_all_sdl2_modules*: stmt =
-  import fowltek/sdl2, fowltek/sdl2/image, fowltek/sdl2/gfx, fowltek/sdl2/ttf
+  import fowltek/sdl2, fowltek/sdl2/image, fowltek/sdl2/gfx, fowltek/sdl2/ttf, fowltek/sdl2/color
 
 type 
   TSdlEventHandler* = proc(engine: var TSdlEngine): bool
