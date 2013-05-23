@@ -115,9 +115,8 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
       
       if not selfFoadd:  ##including the return type
         ##inject self: type into the params
-        insert(params,
-               newNimNode(nnkIdentDefs).add(!!"self", typ, newEmptyNode()), 
-               1)
+        insert(params, 1,
+               newNimNode(nnkIdentDefs).add(!!"self", typ, newEmptyNode()))
       result.add statement
       
     of nnkCommand:
@@ -155,10 +154,10 @@ macro classimpl*(name, typp: expr; body: stmt): stmt {.immediate.} =
       cbody.add((!!"result").newDotExpr(name).newAssignment(name))
     ##clear any default values
     thisRecd[i][2] = newEmptyNode()
-    
+
   if not constructorImplemented:
     constructor[6] = cbody
-    insert(result, constructor, 1)
+    insert(result, 1, constructor)
   
   when defined(debug):
     echo repr(result)

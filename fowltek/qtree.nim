@@ -109,15 +109,14 @@ when isMainModule:
   import math, os, strutils
   randomize()
   
-  let NUM_TO_TRY = if paramCount() == 1: paramStr(1).parseInt.int else: 0
-
-  let depthColors = [
-    colGreen.toSDLcolor, colBlue.toSDLcolor, colYellow.toSDLcolor, colRed.toSDLcolor, colWhite.toSDLcolor]
-  let borderColors: array[TCorner, sdl2.TColor] = [
-    colRed.toSDLcolor, colGreen.toSDLcolor, colBlue.toSDLcolor, colYellow.toSDLcolor]
-    
-  
-  let colWHITE = colWHite.toSDLcolor
+  let 
+    NUM_TO_TRY = if paramCount() == 1: paramStr(1).parseInt.int else: 30
+    depthColors = [
+      colGreen.toSDLcolor, colBlue.toSDLcolor, colYellow.toSDLcolor, colRed.toSDLcolor, colWhite.toSDLcolor] 
+    borderColors: array[TCorner, sdl2.TColor] = [
+      colRed.toSDLcolor, colGreen.toSDLcolor, colBlue.toSDLcolor, colYellow.toSDLcolor]
+   
+    colWHITE = colWHite.toSDLcolor
   
   
   proc rectangleRGBA* (R: PRenderer; Rect: TBounds; color: sdl2.TColor) {.inline.} =
@@ -125,36 +124,34 @@ when isMainModule:
   
   proc debugDraw* (item: int, pos: TBounds; R: PRenderer) {.inline.} =
     R.stringRGBA pos.x.int16, pos.y.int16, $item, 0,255,0,255
-  proc debugDraw* [T](item: TItem[T]; R: PRenderer) {.inline.} =
-    debugDraw item.val, item.pos, R
+  
   proc debugDraw* [T](items: seq[TItem[T]]; R: PRenderer) {.inline.} =
-    for i in 0 .. <items.len: debugDraw items[i], R
+    for i in 0 .. <items.len: debugDraw items[i].val, items[i].pos, R
   
   proc debugDraw* [T](node: PNode[T]; R: Prenderer) {.inline.}=
     if node.isPartitioned:
       for c in TCorner:
         {.unroll.}
         debugDraw node.nodes[c], R
-        template col: expr = borderColors[c]
-        let bounds = node.nodes[c].bounds.addr
-        
+    
     template col: expr = depthColors[node.depth mod 5]
     R.rectangleRGBA node.bounds.x.int16, node.bounds.y.int16, 
       node.bounds.right.int16, node.bounds.bottom.int16,
       col.r, col.g, col.b, col.a
     
-    debugDraw(node.children, R)
+    debugDraw node.children, R
     
   proc debugDraw* [T](tree: var TQuadTree[T]; R: Prenderer) {.inline.} = tree.root.debugDraw(R) 
 
   var engy = newSdlEngine(sizeX = 800, sizeY = 800)
   let winSize = engy.window.getSize()
   var quad = QuadTree[int]((x: 0.0, y: 0.0, w: winsize.x.float, h: winsize.y.float),
-    10, 1)
+    10, 3)
   
   var ID = 0
   while ID < NUM_TO_TRY:
-    quad.insert bounds(winSize.x.random, winSize.y.random, 2, 2), ID
+    let bounds = bounds(winSize.x.random, winSize.y.random, ($ID).len * 8, 10)
+    quad.insert bounds, ID
     ID.inc
   
   var running = true
@@ -177,7 +174,10 @@ when isMainModule:
     engy.clear
     
     quad.debugDraw engy
-    
+    let res = quad.retrieve(bounds(mousePos.x, mousePos.y, 0.0,0.0))
+    for i in 0 .. <res.len:
+      engy.rectangleRGBA res[i][0], colWhite
+      
     engy.present
     
   for it in items(quad.retrieve((11.0, 13.0, 10.0, 20.0))):
