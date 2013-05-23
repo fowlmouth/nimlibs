@@ -3,46 +3,57 @@ import fowltek/sdl2/image, fowltek/sdl2
 
 type
   PSprite* = ref object
+    file*: string
     tex*: sdl2.PTexture
     defaultRect*: TRect
     rows*, cols*: int32
+    center*: TPoint
 
-  TSpriteCache* = object
-    tab: TTable[string, PSprite] 
+  TSpriteCache* = TTable[string, PSprite] 
 
 
-proc newSpriteCache*(initialSize = 64): TSpriteCache =
-  result.tab = initTable[string, PSprite](initialSize)
+proc newSpriteCache*(initialSize = 64): TSpriteCache = initTable[string, PSprite](initialSize)
 
 proc free (some: PSprite) =
   destroy some.tex
-  
-proc loadSprite*(file: string; R: sdl2.PRenderer): PSprite =
-  var surf = IMG_Load(file)
-  if surf.isNil:
-    return
-  var tex = R.createTextureFromSurface(surf)
-  if tex.isNil:
-    destroy surf
-    return
-  
-  new result, free
-  result.tex = tex
-  result.defaultRect.w = surf.w
-  result.defaultRect.h = surf.h
-  destroy surf
-  
-  if file =~ re".+_(\d+)x(\d+)\.\w+":
-    let (w, h) = (matches[0].parseInt.int32, matches[1].parseInt.int32)
-    result.rows = (result.defaultRect.h / h).int32
-    result.defaultRect.h = h
-    result.cols = (result.defaultRect.w / w).int32
-    result.defaultRect.w = w
-  
-  
-  
-proc get*(cache: var TSpriteCache; file: string; R: sdl2.PRenderer): PSprite =
-  result = cache.tab[file]
+
+
+let imageFilenamePattern = re"\S+_(\d+)x(\d+)\.\S{3,4}"
+
+proc get* (cache: var TSpriteCache; R: PRenderer; file: string): PSprite =
+  result = cache[file]
   if result.isNil:
-    result = loadSprite(file, R)
-    cache.tab[file] = result
+    new result, free
+    result.file = file
+    
+    var img = img_load(file)
+    result.tex = R.createTextureFromSurface(img)
+    result.defaultRect.w = img.w
+    result.defaultRect.h = img.h
+    if file =~ imageFilenamePattern:
+      result.defaultRect.w = matches[0].parseInt.cint
+      result.defaultRect.h = matches[1].parseInt.cint
+    result.center.x = cint(result.defaultRect.w / 2)
+    result.center.y = cint(result.defaultRect.h / 2)
+    
+    result.rows = int32(img.h / result.defaultRect.h)
+    result.cols = int32(img.w / result.defaultRect.w)
+    img.destroy
+    
+    cache[file] = result
+
+when false:
+  ## an instantiation needs only to copy the defaultRect from the sprite and keep a reference to the sprite
+  var cache = newSpriteCache()
+  var mySprite: tuple[rect: TRect, sprite: PSprite]
+  mySprite.sprite = cache.get(renderer, "char_20x20.png")
+  mySprite.rect = mySprite.defaultRect
+  
+  #now to draw
+  var dest = mySprite.rect
+  dest.x = 10
+  dest.y = 10
+  renderer.copy mySprite.sprite.tex, mySprite.rect.addr, dest.addr
+  
+  
+  
