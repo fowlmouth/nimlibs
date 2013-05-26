@@ -98,7 +98,7 @@ type
     Terrain_SkirtHeightF, Terrain_BlockSizeI
 
 
-{.push: cdecl, dynlib: LibName.}
+{.push callConv: cdecl, dynlib: LibName.}
 
 importcizzle "h3d":
   proc Init*(): bool

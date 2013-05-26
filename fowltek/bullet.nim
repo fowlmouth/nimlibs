@@ -37,7 +37,7 @@ type
       cdecl.}
 
 
-{.push: cdecl.}
+{.push callConv: cdecl.}
 proc newBulletSDK*(): PPhysicsSDK {.
   dynlib: LibD, importc: "plNewBulletSdk".}
 proc destroy*(handle: PPhysicsSDK) {.

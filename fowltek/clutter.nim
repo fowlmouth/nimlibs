@@ -34,11 +34,14 @@ discard """template CLUTTER_STAGE*(some: PActor): PStage = cast[PStage](some)
 """
 
 #G_TYPE_CHECK_INSTANCE_CAST(
-{.push: cdecl, dynlib: LibName.}
+{.push callConv: cdecl, dynlib: LibName.}
 
 proc initClutter*(argc: ptr cint; argv: ptr cstringarray): TClutterInitError {.
   importc: "clutter_init".}
 
+
+## TODO use this:
+#{.push importc: "clutter_$1".}
 proc main*() {.importc: "clutter_main".}
 
 proc newStage*(): PActor {.importc: "clutter_stage_new".}

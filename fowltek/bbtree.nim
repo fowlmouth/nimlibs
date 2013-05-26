@@ -142,8 +142,7 @@ proc query* [T] (tree: PBB_Tree[T]; bb: TBB; cb: proc(x: T)) {.inline.} =
 
 
 when isMainModule:
-   
-  import fowltek/sdl2/engine
+  import fowltek/sdl2/engine, unsigned
   import_all_sdl2_modules
   import_all_sdl2_helpers
   
@@ -172,8 +171,8 @@ when isMainModule:
   var id = 0
   
   proc insert_a_box =
-    var box = bb(random(windowSize.x - 10) + 20, random(windowSize.y - 10) + 20,
-            random(500)+50, random(300)+50)
+    var box = bb(random(windowSize.x - 10) + 20, random(windowSize.y - 10) + 20, 
+      random(400)+40, random(100)+20)
     inc id
     tree.insert id, box
   
@@ -185,15 +184,17 @@ when isMainModule:
       case NG.evt.kind 
       of QuitEvent:
         running = false
+      of MouseButtonDown: 
+        let m = evmousebutton(ng.evt)
+        if m.button == Button_LEFT:
+          let box = bb(m.x.int, m.y.int, 0,0)
+          tree.query box, proc(x: int) = 
+            echo "got ", x
       of KeyDown:
         let k = evKeyboard(NG.evt).keysym.sym
         case k
         of K_SPACE:
           insert_a_box()
-        of K_M:
-          let box = bb(0,0,(windowSize.x / 2).int, (windowSize.y / 2).int)
-          tree.query box, proc(x: int) = 
-            echo "got ", x
         
         else:nil
         

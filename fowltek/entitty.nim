@@ -2,8 +2,9 @@ import fowltek/pointer_arithm, algorithm, sequtils
 import hashes, tables, typetraits, strutils
 import macros, fowltek/macro_dsl
 
-when NimrodVersion != "0.9.1":
-  {.error "Please to use the Live Nimrod off the Git Head. A thank you <3".}
+when NimrodVersion < "0.9.2":
+  {.error: "Entitty is written with features that require at least Nimrod 0.9.2. Gonna need you to go ahead and upgrade, thanks.".}
+
 {.deadCodeElim: on.}
 
 template Issue431(x): expr = (x + 30)
@@ -451,6 +452,8 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
     result.validType = false
     result.whatsTheProblem = errors.join(", ")
 
+proc isValid* (ty: PTypeInfo): bool {.inline.} = ty.validType
+proc getError* (ty:PTypeInfo):string{.inline.} = ty.whatsTheProblem
 
 proc newDomain*: TDomain = 
   result.typeInfosTable = initTable[seq[int],PTypeInfo](512)

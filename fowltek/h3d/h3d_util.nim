@@ -4,7 +4,7 @@ import h3d, importc_block
 when defined(Linux):
   const LibName = "libHorde3DUtils.so"
 
-{.push: cdecl, dynlib: LibName.}
+{.push callConv: cdecl, dynlib: LibName.}
 
 importcizzle "h3dut":
   
