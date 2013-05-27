@@ -1,12 +1,13 @@
 
 type
-  TIDGen*[A: Ordinal] = object
+  TIDGen*[A] = object
     next: A
     free: seq[A]
 
+proc init* [A](some: var TIDGen[A]) =
+  newSeq some.free, 0
 proc newIDGen*[A]: TIDGen[A] =
-  result.next = 0.A
-  result.free = @[]
+  init result
 
 proc get*[A] (some: var TIDGen[A]): A =
   if some.free.len > 0:
@@ -15,11 +16,12 @@ proc get*[A] (some: var TIDGen[A]): A =
     result = some.next
     inc some.next
 proc release*[A] (some: var TIDgen[A]; id: A) =
-  some.free.add id
+  some.free.  add id
 
 
 when isMainModule:
   var idg = newIDGen[int16]()
+  
   
   for i in 0 .. <5:
     var i1 = idg.get

@@ -10,10 +10,14 @@ when NimrodVersion < "0.9.2":
 template Issue431(x): expr = (x + 30)
   # offset added to numbers affected by nimrod issue 431 (temp, unscaling hack)
 
+template Safe_Import* (module): stmt {.dirty, immediate.} =
+  when not defined(module): import module
+
 template Entitty_Imports* : stmt {.dirty.} =
   ## Import entitty's required libraries, call this before you declare your components.
-  when not(defined(tables)): import tables
-  when not(defined(typetraits)): import typetraits
+  Safe_import typetraits
+  Safe_import tables
+  Safe_Import strutils
 
 type
   PComponentInfo* = ref object{.inheritable.}
@@ -46,7 +50,8 @@ type
     typeInfo*: ptr TTypeInfo
     data: PEntityData
     userdata*: pointer
-  PEntityData = ptr array[0.. <1024, byte]
+    ID* : int
+  PEntityData = ptr array[1024, byte]
 
   ## TODO rename to something fun like World or Place, Happenin_Spot, etc 
   TDomain* = object
@@ -57,15 +62,27 @@ type
   E_BadEntity* = object of E_Base
 var
   allComponents*: seq[PComponentInfo] = @[]
-  messageTypes*: array[0.. <512, bool] ## true if the message is multicast
+  messageTypes*: array[512, bool] ## true if the message is multicast
+  messageTypes_ct {.compileTime.}: array[512, bool]
 template isMulticastMsg*(id: expr[string]): bool = (bind messageTypes)[messageID(id)]
+template isMulticastMsg_ct (id: expr[string]): bool = messageTypes_ct[messageID_ct(id)] 
 
 template idCounter(name, varname): stmt =
   var varname* {.inject, global.} = 0
   proc `next name`: int =
     result = varname
     inc varname
-idCounter MessageID, numMessages
+#idCounter MessageID, numMessages
+
+var numMessages* = 0
+var numMessages_ct {.compileTime.} = 0
+proc nextMessageID*: int = 
+  result = numMessages
+  inc numMessages
+proc nextMessageID_CT* : int{.compileTime.}=
+  result = numMessages_CT
+  inc numMessages_CT
+
 var numComponents* = 0
 
 
@@ -80,6 +97,53 @@ template addMulticastMsg* (T: Typedesc; M: expr[string]; func: proc): stmt =
     echo "wahh wahh you're overriding the definition of message ", M, " for ", comp.name
   comp.multicast_messages[msg_id] = cast[pointer](func)
 
+macro msg_impl2* : stmt {.immediate.} =
+  
+  let 
+    cs = callsite()
+  if len(cs) > 5 or len(cs) < 4:
+    quit "Malformed arguments for msg_impl()"
+  
+  let
+    component = cs[1]
+    msg = cs[2]
+  var 
+    func: PNimrodNode
+    weight = 0
+  
+  ## hack: if you invoke do with no parameters just the stmt list is sent. 
+  template getRealFunction(fromNode): expr =
+    block:
+      var result: PNimrodNode
+      case fromNode.kind
+      of nnkStmtList:
+        result = newProc(procType = nnkDo, body = fromNode)
+      of routineNodes: 
+        result = fromNode
+      else:
+        quit "Invalid parameter kind: $# \n $#" % [$fromNode.kind, lispRepr(fromNode)]
+      result
+  
+  if len(cs) == 4:
+    func = getRealFunction(cs[3])
+  else:
+    weight = cs[3].intval.int
+    func = getRealFunction(cs[4])
+  # block:
+  #  let comp = componentInfo(component)
+  #  let messageID = 
+  #  when isMulticastMsg_ct(msg):
+  #   if comp.multicast_messages.hasKey(msg_id):
+  #     echo "Overriding ", msg, " for ", comp.name
+  #  else:
+  #   if comp.unicast_messages.hasKey(msg_id):
+  #
+  #   
+  # set_component_message(
+  #  componentInfo(component), messageID_CT(msg), isMulticastMsg_CT(msg),
+  #  proc(X: PEntity; ..) = ...
+  # )
+   
 macro msg_impl* : stmt {.immediate.} =
   # Implements a message for a component
   # 
@@ -233,6 +297,9 @@ proc componentID*(s: expr[string]): int =
 proc messageID*(msg: expr[string]): int =
   var id {.global.} = nextMessageID()
   return id
+proc messageID_CT*(msg: expr[string]): int =
+  var id{.global.} = nextMessageID_CT()
+  return id
 
 
 macro unicast*(func): stmt =
@@ -274,11 +341,11 @@ macro unicast*(func): stmt =
   ) ) )
   
   #f[6].insert(0, parseExpr("echo repr(entity)"))
+  result = newStmtList(parseExpr("entitty_imports"), f)
   
   when defined(Debug):
     echo "Unicast macro result: "
-    echo repr(f)
-  result = f
+    echo repr(result)
 
 macro multicast*(func): stmt =
   #assert callsite is a forward declaration
@@ -321,15 +388,20 @@ macro multicast*(func): stmt =
   let forStmt = newNimNode(nnkForStmt).add(
     !!"msg", newCall("items", parseExpr("runList[]")), newStmtList(callExpr))
   
-  result_body.add newNimNode(nnkIfStmt).add(
+  result_body.add newStmtList(forStmt)
+  discard """ result_body.add newNimNode(nnkIfStmt).add(
     newNimNode(nnkElifBranch).add(
       parseExpr("not(runList[].isNil)"),
-      newStmtList(forStmt)))
+      newStmtList(forStmt))) """
   
   resultish.body = newStmtList(result_body)
   result = newStmtList(
+    parseExpr("entitty_imports()"),
     parseExpr("""isMulticastMsg("$1") = true""" % msg_name),
     resultish)
+  
+  when defined(Debug):
+    echo "multicast result: ", treerepr(result)
 
 proc ensureLen* [T](some: var seq[T]; len: int) {.inline.} =
   if some.len < len: some.setLen len
@@ -399,6 +471,8 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
     echo "typeinfo initialized for ", nummessages, " messages "#, repr(components)
   newSeq result.vtable, Issue431(numMessages)
   newSeq result.multicast, Issue431(numMessages)
+  for i in 0 .. <Issue431(numMessages):
+    newSeq result.multicast[i], 0
   newSeq result.initializers, 0
   
   var unicastWeights = newSeq[int](Issue431(numMessages))
@@ -424,7 +498,7 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
       
     for message_id, msg in pairs(thisComponent.multicast_messages):
       template thisMessageSeq: expr = result.multicast[message_id]
-      if thisMessageSeq.isNIL: thisMessageSeq.newSeq 0
+      #if thisMessageSeq.isNIL: thisMessageSeq.newSeq 0
       thisMessageSeq.add msg
 
     requiredComponents.add thisComponent.requiredComponents
@@ -488,8 +562,8 @@ proc instantiate (ty: PTypeInfo): PEntityData =
   return cast[PEntityData](alloc0(ty.instantiatedSize))
 
 proc newEntity*(typeinfo: PTypeInfo): TEntity =
-  result.typeInfo = typeInfo
-  result.data = typeInfo.instantiate
+  result = TEntity(typeInfo: typeInfo, data: typeInfo.instantiate)
+  
   # to optimize, could move this step to newTypeInfo() 
   for initializer in result.typeInfo.initializers:
     initializer result
@@ -505,7 +579,9 @@ proc destroy* (some: PEntity) {.inline.} =
   reset some.data
 
 proc setInitializer*(component: typedesc, func: proc(x: PEntity)) =
-  componentInfo(component).initializer = func  
+  componentInfo(component).initializer = func
+  when defined(Debug): 
+    echo "set initializer for ", componentInfo(component).name  
 
 proc hasComponent*(entity: PEntity; T: Typedesc): bool {.
   inline.} = not entity.typeInfo.allComponents[componentID(T)].isNil
