@@ -36,6 +36,8 @@ proc get* (cache: var TSpriteCache; R: PRenderer; file: string): PSprite =
   
   let file = (if cache.imageRoot.isNil: file else: (cache.imageRoot)/file)
   let img = img_load(file)
+  if img.isNil:
+    raise newException(EIO, $sdl2.getError())
   
   result.tex = R.createTextureFromSurface(img)
   result.defaultRect.w = img.w
