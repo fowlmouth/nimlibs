@@ -4,7 +4,7 @@ import os, fowltek/idgen, fowltek/vector_math
 import math
 randomize()
 
-setImageRoot  "/media/fowl/Toshiba Ext HDD/projects/keineSchweine/data/gfx"
+setImageRoot getAppDir()/"gfx"
 
 var NG: TSdlEngine 
 NG =  newSdlEngine()
@@ -23,7 +23,7 @@ Vel.setInitializer proc(X: PEntity) =
   X[Vel].v = random(360).float.degrees2radians.vectorForAngle * (1+(35* random(10)/10))
 
 SimpleAnim.setInitializer proc(X: PEntity) =
-  X.loadSimpleAnim NG, "asteroids/Rock32a_32x32.png"
+  X.loadSimpleAnim NG, "Rock32a_32x32.png"
 
 
 var dom: TDomain
@@ -57,6 +57,10 @@ template eachEntity* (body: stmt): stmt {.immediate,dirty.}=
 dom = newDomain()
 
 discard add_ents(10, Pos, Vel, SpriteInst, SimpleAnim, ToroidalBounds)
+
+VAR player = dom.newEntity(Pos, Vel, SpriteInst, ToroidalBounds, HID_Controller, InputState).add_ent
+get_ent(player)[SpriteInst].loadSprite NG, "hornet_54x54.png"
+
 
 var running = true
 template stopRunning = running = false

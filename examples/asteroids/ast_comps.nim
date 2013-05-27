@@ -8,8 +8,12 @@ proc debugSTR* (result: var seq[string]) {.multicast.}
 proc debugSTR* (entity: PEntity): seq[string] =
   newseq result, 0
   entity.debugStr result
-template debug_str_impl(ty): stmt {.immediate.}=
+template debug_str_impl(ty; body: stmt): stmt {.immediate.}=
   msg_impl(ty, debugSTR) do (result: var seq[string]):
+    body
+
+template default_debug_str(ty): stmt {.immediate.} =
+  debugStrImpl(ty):
     result.add("$1: $2".format(componentInfo(ty).name, $ entity[ty]))
 
 
@@ -28,7 +32,7 @@ type
   Pos* = TVector2f
 msg_impl(Pos, get_pos) do -> TVector2f: 
   result = entity[Pos]
-debug_str_impl Pos
+default_debug_str Pos
 
 type
   Vel* = object
@@ -114,6 +118,59 @@ msg_impl(ToroidalBounds, update) do (dt: float) :
   elif p.y.cint > entity[ToroidalBounds].rect.bottom:
     p.y = entity[ToroidalBounds].rect.y.float
 
+
+
+type
+  Acceleration* = object
+    vec: TVector2f
+Acceleration.requiresComponent Vel
+
+type
+  TThrustState* = enum ThrustIdle, ThrustFwd, ThrustRev
+  TTurningState* = enum TurnIdle, TurnRight, TurnLeft
+  InputState* = object
+    thrust*: TThrustState
+    turning*: TTurningState
+
+proc turn* (dir: TTurningState) {.unicast.}
+proc stopTurn* (dir: TTurningState) {.unicast.}
+proc thrust* (dir: TThrustState) {.unicast.}
+proc stopThrust* (dir: TThrustState) {.unicast.}
+
+msg_impl(InputState, turn) do (dir: TTurningState):
+  entity[InputState].turning = dir
+msg_impl(InputState, stopTurn) do (dir: TTurningState):
+  if entity[InputState].turning == dir:
+    entity[InputState].turning = TurnIdle
+msg_impl(InputState, thrust) do (dir: TThrustState):
+  entity[InputState].thrust = dir
+msg_impl(InputState, thrust) do (dir: TThrustState):
+  if entity[InputState].thrust == dir:
+    entity[InputState].thrust = ThrustIdle
+
+type
+  InputController* = object of TObject
+    name*: string
+    cb*: proc(X: PEntity; event: var TEvent): bool 
+
+proc initInputController* (controller: ptr InputController) =
+  controller.name = "Disconnected"
+  controller.cb = proc(X: PEntity; event: var TEvent): bool = false
+
+type
+  HID_Controller* = object of InputController
+
+HID_Controller.setInitializer proc(X: PEntity) =
+  initInputController X[HID_Controller].addr
+
+proc hid_keyboard (X: PEntity; event: var TEvent): bool=
+  if event.kind notin {KeyDown, KeyUp}:
+    let k = evKeyboard(event)
+    case k.keysym.sym
+    of K_A:
+      #omg
+    else:
+      echo "Unhandled key "
 
 
 
