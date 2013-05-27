@@ -395,7 +395,8 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
   newSeq result.allComponents, Issue431(numComponents)
   newSeq result.offsets, Issue431(numComponents)
   
-  echo "typeinfo initialized for ", nummessages, " messages "#, repr(components)
+  when defined(Debug):
+    echo "typeinfo initialized for ", nummessages, " messages "#, repr(components)
   newSeq result.vtable, Issue431(numMessages)
   newSeq result.multicast, Issue431(numMessages)
   newSeq result.initializers, 0
