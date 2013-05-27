@@ -1,56 +1,62 @@
 import ast_comps, fowltek/entitty, fowltek/sdl2/engine
 import_all_sdl2_modules
-import os #, fowltek/idgen
+import os, fowltek/idgen, fowltek/vector_math
 import math
 randomize()
 
 setImageRoot  "/media/fowl/Toshiba Ext HDD/projects/keineSchweine/data/gfx"
 
-var dom = newDomain()
-var ast = dom.newEntity(Pos, Vel, SpriteInst, SimpleAnim)
-var NG: TSdlEngine
+var NG: TSdlEngine 
+NG =  newSdlEngine()
+
+block :
+  let winsize = NG.window.getSize
+  ToroidalBounds.setInitializer proc(X: PEntity) =
+    x[ToroidalBounds].rect.w = winSize.x
+    x[ToroidalBounds].rect.h = winSize.y
+
+Pos.setInitializer proc(X: PEntity) =
+  X[Pos].x = random(640).float
+  X[Pos].y = random(480).float
+
+Vel.setInitializer proc(X: PEntity) =
+  X[Vel].v = random(360).float.degrees2radians.vectorForAngle * (1+(35* random(10)/10))
+
+SimpleAnim.setInitializer proc(X: PEntity) =
+  X.loadSimpleAnim NG, "asteroids/Rock32a_32x32.png"
+
+
+var dom: TDomain
 
 var entities: seq[TEntity] = @[]
-#var ent_id_ctr : TIDgen[int]
-#ent_id_ctr.init
+var e_id_ctr = newIDgen[int]()
 
 proc get_ent* (id: int): PEntity{.inline.} = entities[id]
 
-var ent_id_ctr = 0
-proc next_id: int = 
-  result = ent_id_ctr
-  inc ent_id_ctr
-
-proc toPTR(some: int): pointer{.inline.} = cast[pointer](some)
-
 proc add_ent* (ent: TEntity): int =
-  var id = next_id()
-  entities.ensureLen id+1
-  entities[id] = ent
-  get_ent(id).userData = toPTR(id)
-  result = id
+  result = e_id_ctr.get
+  entities.ensureLen result+1
+  entities[result] = ent
+  get_ent(result).id = result
 
 proc add_ents* (num: int, components: varargs[int, `componentID`]): seq[int] =
   var ty = dom.getTypeinfo(components)
-  if not ty.isValid: return
   
   newSeq result, 0
   for i in 1 .. num:
     let id = ty.NewEntity.add_ent
     result.add id
-    if id.get_ent.hasComponent(Pos):
-      id.get_ent[Pos] = (random(640).float, random(480).float)
-    if id.get_ent.hasComponent(SimpleAnim):
-      id.get_ent.loadSimpleAnim NG, "asteroids/Rock32a_32x32.png"
 
-template eachEntity* (body: stmt): stmt {.immediate.}=
-  for id{.inject.} in 0 .. high(entities):  
-    template entity: expr {.inject.} = entities[id]
-    body
 
-NG =  newSdlEngine()
+template eachEntity* (body: stmt): stmt {.immediate,dirty.}=
+  for idx in 0 .. high(entities):  
+    template entity: expr  = entities[idx]
+    if entity.id > -1:
+      body
 
-discard add_ents (10, Pos, Vel, SpriteInst, SimpleAnim)
+dom = newDomain()
+
+discard add_ents(10, Pos, Vel, SpriteInst, SimpleAnim, ToroidalBounds)
 
 var running = true
 template stopRunning = running = false
