@@ -57,6 +57,7 @@ proc drawDebugStrings (E: PEntity; R: PRenderer) =
 
 
 var running = true
+var paused = false
 template stopRunning = running = false
 
 while running:
@@ -64,24 +65,29 @@ while running:
     case NG.evt.kind
     of QuitEvent: stopRunning
     of KeyDown:
-      if not HID_Dispatcher.handleEvent("Keyboard", NG.evt):
+      if paused or (not paused and not HID_Dispatcher.handleEvent("Keyboard", NG.evt)):
         let k = NG.evt.evKeyboard.keysym.sym
-        if k == K_ESCAPE: stopRunning
+        case k
+        of K_ESCAPE: stopRunning
+        of K_P: paused = not paused
+        else:nil
     of keyUp:
-      discard HID_Dispatcher.handleEvent("Keyboard", NG.evt)
+      if not paused:
+        discard HID_Dispatcher.handleEvent("Keyboard", NG.evt)
     else:nil
   
   let dt = NG.frameDeltaFLT
-  eachEntity:
-    entity.update dt
-  
-  NG.setDrawColor 0,0,0,255
-  NG.clear
-  
-  eachEntity:
-    entity.draw NG
-  
-  player.get_ent.drawDebugStrings NG
+  if not paused:
+    eachEntity:
+      entity.update dt
+    
+    NG.setDrawColor 0,0,0,255
+    NG.clear
+    
+    eachEntity:
+      entity.draw NG
+    
+    player.get_ent.drawDebugStrings NG
   
   NG.present
 

@@ -238,6 +238,8 @@ type
   RollSprite* = object
     roll: float
 RollSprite.requiresComponent SpriteInst
+debugStrImpl(RollSprite):
+  result.add "Roll: $#" % formatFloat(entity[RollSprite].roll,ffDecimal,2)
 
 msg_impl(RollSprite, update) do (dt: float):
   entity[RollSprite].roll *= 0.98
@@ -250,12 +252,15 @@ msg_impl(RollSprite, draw, 1000) do (R: PRenderer):
   # set the row/col of the src rect
   # i want -1 to be 0 and 1 to be sprite.cols
   
+  # so i take roll (it goes from -1 to 1), add 1 to it, divide by 2 
+  # multiply by how many cols there are
+  
   entity[SpriteInst].rect.x = (
     ((entity[RollSprite].roll + 1.0) / 2.0 * entity[SpriteInst].sprite.cols.float)
-  ).round.cint * entity[SpriteInst].rect.w
+  ).floor.cint * entity[SpriteInst].rect.w
   entity[SpriteInst].rect.y = (
     entity[Orientation].angleRad.radians2degrees / 360.0 * entity[SpriteInst].sprite.rows.float
-  ).round.cint * entity[SpriteInst].rect.h 
+  ).floor.cint * entity[SpriteInst].rect.h 
   
   R.copy entity[SpriteInst].sprite.tex, entity[SpriteInst].rect.addr, dest.addr
 
@@ -263,8 +268,10 @@ msg_impl(RollSprite, roll) do (dir: TTurningState):
   case dir
   of TurnRight:
     entity[RollSprite].roll -= 0.2
+    if entity[RollSprite].roll < -1: entity[RollSprite].roll = -1
   of TurnLeft:
     entity[RollSprite].roll += 0.2
+    if entity[RollSprite].roll > 1: entity[RollSprite].roll = 1
   else:nil
 
 
