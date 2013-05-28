@@ -1,4 +1,4 @@
-
+## code that ties the component system to the main code in asteroids.nim
 
 block :
   let winsize = NG.window.getSize
@@ -9,6 +9,9 @@ block :
 Pos.setInitializer proc(X: PEntity) =
   X[Pos].x = random(640).float
   X[Pos].y = random(480).float
+
+Orientation.setInitializer proc(X: PEntity)=
+  X[Orientation].angleRad = random(360).float.degrees2radians
 
 Vel.setInitializer proc(X: PEntity) =
   X[Vel].vec = random(360).float.degrees2radians.vectorForAngle * (1+(35* random(10)/10))

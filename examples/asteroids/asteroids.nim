@@ -1,7 +1,7 @@
 import ast_comps, fowltek/entitty, fowltek/sdl2/engine
 import_all_sdl2_modules
-import os, fowltek/idgen, fowltek/vector_math
-import math, tables, fowltek/tmaybe
+import os, fowltek/idgen, fowltek/vector_math, strutils
+import math, tables, fowltek/tmaybe, fowltek/bbtree
 randomize()
 
 setImageRoot getAppDir()/"gfx"
@@ -40,11 +40,10 @@ proc add_asteroids (S: PCServ, num = 10) =
     init_random_asteroid
   )
 
-
-proc initialize_local_game =
+proc initialize_local_game (ast_count = (if paramCount() == 1: paramStr(1).parseInt.int else: 10)) =
   activeServer = newServ()
-  
-  activeServer.add_asteroids 30
+
+  activeServer.add_asteroids ast_count
 
   localPlayerID = activeServer.add_ent(activeServer.domain.newEntity(Pos, Vel, SpriteInst, ToroidalBounds, 
     HID_Controller, InputState, Acceleration, Orientation, RollSprite
@@ -54,8 +53,8 @@ proc initialize_local_game =
     echo "Could not register keyboard: ", msg
   LocalPlayer[SpriteInst].loadSprite NG, "hornet_54x54.png"
 
-
 initialize_local_game()
+
 
 var running = true
 var paused = false
@@ -81,9 +80,10 @@ while running:
   
   let dt = NG.frameDeltaFLT
   
+  activeServer.poll
+  
   if not paused:
-    eachEntity(activeServer):
-      entity.update dt
+    activeServer.update dt
     
     NG.setDrawColor 0,0,0,255
     NG.clear
@@ -96,6 +96,7 @@ while running:
     if debugDrawEnabled:
       eachEntity(activeServer):
         entity.debugDraw NG
+      activeServer.bbtree.debugDraw NG
   
   NG.present
 

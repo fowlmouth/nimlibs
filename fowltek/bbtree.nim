@@ -67,9 +67,9 @@ proc removeSubtree*[T] (node, leaf: PBB_Node[T]): PBB_Node[T] =
   if leaf == node: return nil
   
   if leaf.parent == node:
-    var otherChild = node.otherchild(leaf)
-    otherChild.parent = node.parent
-    return otherChild
+    var oc = otherchild(node,leaf)
+    oc.parent = node.parent
+    return oc
   
   leaf.parent.disownChild leaf
   return node
@@ -141,13 +141,10 @@ proc query* [T] (tree: PBB_Tree[T]; bb: TBB; cb: proc(x: T)) {.inline.} =
   tree.root.querySubtree bb, cb
 
 
-when isMainModule:
-  import fowltek/sdl2/engine, unsigned
+when defined(usesdl2) or isMainModule:
+  import fowltek/sdl2/engine, colors
   import_all_sdl2_modules
   import_all_sdl2_helpers
-  
-  import colors, math
-  randomize()
   
   let colRed = colRed.toSDLcolor
   
@@ -155,14 +152,23 @@ when isMainModule:
     R.rectangleRGBA bb.left.int16, bb.top.int16, bb.right.int16, bb.bottom.int16,
       col.R, col.G, col.B, col.A 
   
-  proc debugDraw* [T] (some: PBB_Node[T]; R: PRenderer) =
-    R.rectangleRGBA some.bb, colRed
+  proc debugDraw* [T] (some: PBB_Node[T]; R: PRenderer; depth = 0) =
+    var col = colRed
+    col.a = ((depth+7).min(13) * 19).uint8  
+    R.rectangleRGBA some.bb, col
     if not some.isLeaf:
-      some.a.debugDraw R
-      some.b.debugDraw R
-      
+      some.a.debugDraw R, depth+1
+      some.b.debugDraw R, depth+1
+  
   proc debugDraw* [T] (some: PBB_Tree[T]; r: PRenderer) = 
     debugDraw some.root, r
+  
+
+when isMainModule:
+  import unsigned
+  
+  import math
+  randomize()
   
   var NG = newSdlEngine()
   let windowSize = NG.window.getSize

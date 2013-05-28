@@ -1,5 +1,5 @@
 import fowltek/entitty, fowltek/sdl2
-import fowltek/TMaybe, math, fowltek/vector_math
+import fowltek/TMaybe, math, fowltek/vector_math, fowltek/boundingbox
 type TVector2f* = TVector2[float]
 const
   TAU = PI * 2
@@ -28,6 +28,7 @@ proc update* (dt: float) {.multicast.}
 proc getPos* : TVector2f {.unicast.}
 proc draw* (R: PRenderer) {.unicast.}
 
+proc getBoundingBox* : TBB {.unicast.}
 
 template ff (f; prec = 5): expr = formatFloat(f, ffDecimal, prec)
 
@@ -63,12 +64,20 @@ type
     rect*: TRect
 SpriteInst.requiresComponent Pos
 
+msg_impl(SpriteInst, getBoundingBox) do -> TBB:
+  let p = entity[Pos].addr
+  return bb(
+    p.x - (entity[SpriteInst].rect.w / 2), 
+    p.y - (entity[SpriteInst].rect.h / 2), 
+    entity[SpriteInst].rect.w.float, 
+    entity[SpriteInst].rect.h.float)
+
 msg_impl(SpriteInst, draw) do (R: PRenderer):
   #something
   var dest = entity[SpriteInst].rect
   let p = entity[Pos].addr
-  dest.x = p.x.cint
-  dest.y = p.y.cint
+  dest.x = p.x.cint - (entity[SpriteInst].rect.w / 2).cint
+  dest.y = p.y.cint - (entity[SpriteInst].rect.h / 2).cint
   R.copy entity[SpriteInst].sprite.tex, 
     entity[SpriteInst].rect.addr, dest.addr  
 
