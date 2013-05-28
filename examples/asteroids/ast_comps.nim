@@ -1,6 +1,5 @@
 import fowltek/entitty, fowltek/sdl2
-
-import fowltek/vector_math
+import fowltek/TMaybe, math, fowltek/vector_math
 type TVector2f* = TVector2[float]
 
 
@@ -36,14 +35,16 @@ default_debug_str Pos
 
 type
   Vel* = object
-    v*: TVector2f
+    vec*: TVector2f
 
 msg_impl(Vel, update) do (dt: float):
-  entity[Pos] += entity[Vel].v * dt
+  entity[Pos] += entity[Vel].vec * dt
 
 msg_impl(Vel, debugSTR) do(result:var seq[string]):
-  result.add "Vel: $1" % $entity[Vel].v
+  result.add "Vel: $1" % $entity[Vel].vec
+
 from fowltek/sdl2/spritecache import newSpriteCache, get, PSprite, setImageRoot
+
 
 type
   SpriteInst* = object
@@ -119,11 +120,24 @@ msg_impl(ToroidalBounds, update) do (dt: float) :
     p.y = entity[ToroidalBounds].rect.y.float
 
 
+from fowltek/sdl2/engine import radians2degrees, vectorForAngle
+type
+  Orientation* = object
+    angleRad*: float
+debugStrImpl(Orientation):
+  result.add "Orientation: $# degrees" % entity[Orientation].angleRad.radians2degrees.formatFloat(ffDecimal, 2)
 
 type
   Acceleration* = object
     vec: TVector2f
 Acceleration.requiresComponent Vel
+defaultDebugStr Acceleration
+
+msg_impl(Acceleration, update) do (dt: float):
+  entity[Vel].vec += entity[Acceleration].vec
+  reset entity[Acceleration].vec
+
+
 
 type
   TThrustState* = enum ThrustIdle, ThrustFwd, ThrustRev
@@ -131,11 +145,16 @@ type
   InputState* = object
     thrust*: TThrustState
     turning*: TTurningState
+InputState.requiresComponent Acceleration, Orientation
+defaultDebugStr InputState
 
 proc turn* (dir: TTurningState) {.unicast.}
 proc stopTurn* (dir: TTurningState) {.unicast.}
 proc thrust* (dir: TThrustState) {.unicast.}
 proc stopThrust* (dir: TThrustState) {.unicast.}
+
+proc roll* (dir: TTurningState) {.unicast.}
+
 
 msg_impl(InputState, turn) do (dir: TTurningState):
   entity[InputState].turning = dir
@@ -144,9 +163,24 @@ msg_impl(InputState, stopTurn) do (dir: TTurningState):
     entity[InputState].turning = TurnIdle
 msg_impl(InputState, thrust) do (dir: TThrustState):
   entity[InputState].thrust = dir
-msg_impl(InputState, thrust) do (dir: TThrustState):
+msg_impl(InputState, stopThrust) do (dir: TThrustState):
   if entity[InputState].thrust == dir:
     entity[InputState].thrust = ThrustIdle
+msg_impl(InputState, update) do (dt: float): 
+  case entity[InputState].thrust
+  of ThrustFwd:
+    entity[Acceleration].vec = entity[Orientation].angleRad.vectorForAngle * 0.22
+  of ThrustRev:
+    entity[Acceleration].vec = entity[Orientation].angleRad.vectorForAngle * -0.22
+  else: nil
+  case entity[InputState].turning
+  of TurnRight:
+    entity[Orientation].angleRad += 1.0 * dt
+    entity.roll TurnRight
+  of TurnLeft:
+    entity[Orientation].angleRad -= 1.0 * dt
+    entity.roll TurnLeft
+  else:nil
 
 type
   InputController* = object of TObject
@@ -163,15 +197,74 @@ type
 HID_Controller.setInitializer proc(X: PEntity) =
   initInputController X[HID_Controller].addr
 
-proc hid_keyboard (X: PEntity; event: var TEvent): bool=
-  if event.kind notin {KeyDown, KeyUp}:
-    let k = evKeyboard(event)
-    case k.keysym.sym
-    of K_A:
-      #omg
-    else:
-      echo "Unhandled key "
+debugStrImpl(HID_Controller):
+  result.add "HID Controller: $#" % entity[HID_Controller].name
+
+## HID Dispatcher for sdl events
+
+type
+  T_HID_DispatchRec* = tuple[takenBy: TMaybe[int], setup: proc(X: PEntity)]
+  T_HID_Dispatcher* = object
+    devices*: TTable[string, T_HID_DispatchRec]  
+
+var HID_Dispatcher*: T_HID_Dispatcher
+HID_Dispatcher.devices =  initTable[string, T_HID_DispatchRec](8)
 
 
+template HID_Device_Impl *(name_str: expr[string]; body: stmt): stmt {.immediate.} =
+  block:
+    var dev: T_HID_DispatchRec
+    dev.setup = proc(X: PEntity) =
+      body
+      X[HID_Controller].name = name_str
+    HID_Dispatcher.devices[name_str] = dev
+
+proc hasDevice* (disp: var T_HID_Dispatcher; device: string): bool = disp.devices.hasKey(device)
+
+proc requestDevice* (disp: var T_HID_Dispatcher; device: string; 
+    entity: PEntity): TMaybe[string] =
+  if not disp.hasDevice(device):
+    return Just("Invalid device $#" % device)
+  elif disp.devices[device].takenBy:
+    return Just("Device is already registered.")
+  
+  disp.devices[device].setup(entity)
+  disp.devices.mget(device).takenBy = Just(entity.id)
+
+
+
+# RollSprite are the fake-3d sprites like the ship sprites (rotation angles are rows)
+type
+  RollSprite* = object
+    roll: float
+RollSprite.requiresComponent SpriteInst
+
+msg_impl(RollSprite, update) do (dt: float):
+  entity[RollSprite].roll *= 0.98
+  
+msg_impl(RollSprite, draw, 1000) do (R: PRenderer):
+  var dest = entity[SpriteInst].rect
+  let p = entity[Pos].addr
+  dest.x = p.x.cint
+  dest.y = p.y.cint 
+  # set the row/col of the src rect
+  # i want -1 to be 0 and 1 to be sprite.cols
+  
+  entity[SpriteInst].rect.x = (
+    ((entity[RollSprite].roll + 1.0) / 2.0 * entity[SpriteInst].sprite.cols.float)
+  ).round.cint * entity[SpriteInst].rect.w
+  entity[SpriteInst].rect.y = (
+    entity[Orientation].angleRad.radians2degrees / 360.0 * entity[SpriteInst].sprite.rows.float
+  ).round.cint * entity[SpriteInst].rect.h 
+  
+  R.copy entity[SpriteInst].sprite.tex, entity[SpriteInst].rect.addr, dest.addr
+
+msg_impl(RollSprite, roll) do (dir: TTurningState):
+  case dir
+  of TurnRight:
+    entity[RollSprite].roll -= 0.2
+  of TurnLeft:
+    entity[RollSprite].roll += 0.2
+  else:nil
 
 
