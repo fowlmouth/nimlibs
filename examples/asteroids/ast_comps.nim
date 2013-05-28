@@ -1,6 +1,9 @@
 import fowltek/entitty, fowltek/sdl2
 import fowltek/TMaybe, math, fowltek/vector_math
 type TVector2f* = TVector2[float]
+const
+  TAU = PI * 2
+  HalfPI = PI/2
 
 
 proc debugSTR* (result: var seq[string]) {.multicast.}
@@ -15,14 +18,22 @@ template default_debug_str(ty): stmt {.immediate.} =
   debugStrImpl(ty):
     result.add("$1: $2".format(componentInfo(ty).name, $ entity[ty]))
 
+proc debugDRAW* (R: PRenderer) {.multicast.}
+template debugDrawImpl (ty; body: stmt): stmt {.immediate.}=
+  msg_impl(ty, debugDRAW) do(R: PRenderer) :
+    body
+
 
 proc update* (dt: float) {.multicast.}
 proc getPos* : TVector2f {.unicast.}
 proc draw* (R: PRenderer) {.unicast.}
 
 
-proc `$`* (some: TVector2f): string = "($1, $2)" % [formatFloat(some.x, ffDecimal, 4),
-  formatFloat(some.y, ffDecimal, 4) ]
+template ff (f; prec = 5): expr = formatFloat(f, ffDecimal, prec)
+
+proc `$`* (some: TVector2f): string = "($1, $2)" % [
+  ff(some.x, 4), 
+  ff(some.y, 4)]
 
 
 
@@ -74,11 +85,12 @@ proc loadSprite* (s: var SpriteInst, R: PRenderer; file: string) =
 type
   TFrame* = tuple[col: int, time: float] 
   SimpleAnim* = object
-    frames: seq[TFrame]
-    curFrame: int
-    timer: float
+    frames*: seq[TFrame]
+    curFrame*: int
+    timer*: float
 SimpleAnim.requiresComponent SpriteInst
 
+proc randf* (prec = 10_000): float {.inline.}= random(prec)/prec
 
 proc loadSimpleAnim* (ent: PEntity; R: PRenderer; file: string) =
   ent[SpriteInst].loadSprite R, file
@@ -87,7 +99,7 @@ proc loadSimpleAnim* (ent: PEntity; R: PRenderer; file: string) =
 
   for i in 0 .. <ent[SpriteInst].sprite.cols:
     ent[SimpleAnim].frames[i].col = i
-    ent[SimpleAnim].frames[i].time = 0.2
+    ent[SimpleAnim].frames[i].time = (randf() * 0.3) + 0.1
 
 msg_impl(SimpleAnim, update) do (dt: float): 
   entity[SimpleAnim].timer -= dt
@@ -120,22 +132,33 @@ msg_impl(ToroidalBounds, update) do (dt: float) :
     p.y = entity[ToroidalBounds].rect.y.float
 
 
-from fowltek/sdl2/engine import radians2degrees, vectorForAngle
+from fowltek/sdl2/engine import radians2degrees, vectorForAngle, vectorToAngle
+import fowltek/sdl2/gfx
 type
   Orientation* = object
     angleRad*: float
 debugStrImpl(Orientation):
   result.add "Orientation: $# degrees" % entity[Orientation].angleRad.radians2degrees.formatFloat(ffDecimal, 2)
+debugDrawImpl(Orientation):
+  let offs = entity[Orientation].angleRad.vectorForAngle * 10.0
+  let p = entity[Pos].addr
+  R.lineRGBA p.x.int16, p.y.int16, (p.x + offs.x).int16, (p.y + offs.y).int16,
+    0,255,0,255
 
 type
   Acceleration* = object
     vec: TVector2f
 Acceleration.requiresComponent Vel
-defaultDebugStr Acceleration
+
+debugStrImpl(Acceleration):
+  result.add "Accel angle: $# magnitude: $#" % [
+    ff(entity[Acceleration].vec.vectorToAngle.radians2degrees, 2),
+    ff(entity[Acceleration].vec.length, 4) ]
 
 msg_impl(Acceleration, update) do (dt: float):
   entity[Vel].vec += entity[Acceleration].vec
-  reset entity[Acceleration].vec
+  entity[Acceleration].vec *= 0.92
+  #reset entity[Acceleration].vec
 
 
 
@@ -169,33 +192,30 @@ msg_impl(InputState, stopThrust) do (dir: TThrustState):
 msg_impl(InputState, update) do (dt: float): 
   case entity[InputState].thrust
   of ThrustFwd:
-    entity[Acceleration].vec = entity[Orientation].angleRad.vectorForAngle * 0.22
+    entity[Acceleration].vec = entity[Orientation].angleRad.vectorForAngle * 2.0 
   of ThrustRev:
-    entity[Acceleration].vec = entity[Orientation].angleRad.vectorForAngle * -0.22
+    entity[Acceleration].vec = entity[Orientation].angleRad.vectorForAngle * -2.0 
   else: nil
   case entity[InputState].turning
   of TurnRight:
-    entity[Orientation].angleRad += 1.0 * dt
+    entity[Orientation].angleRad += 7.0 * dt
     entity.roll TurnRight
   of TurnLeft:
-    entity[Orientation].angleRad -= 1.0 * dt
+    entity[Orientation].angleRad -= 7.0 * dt
     entity.roll TurnLeft
   else:nil
 
 type
   InputController* = object of TObject
-    name*: string
-    cb*: proc(X: PEntity; event: var TEvent): bool 
 
-proc initInputController* (controller: ptr InputController) =
-  controller.name = "Disconnected"
-  controller.cb = proc(X: PEntity; event: var TEvent): bool = false
-
-type
   HID_Controller* = object of InputController
+    name*: string
+    cb*: proc(X: PEntity; event: var TEvent): bool
 
+ 
 HID_Controller.setInitializer proc(X: PEntity) =
-  initInputController X[HID_Controller].addr
+  X[HID_Controller].name = "Disconnected"
+  X[HID_Controller].cb = proc(X: PEntity; event: var TEvent): bool = false
 
 debugStrImpl(HID_Controller):
   result.add "HID Controller: $#" % entity[HID_Controller].name
@@ -244,22 +264,31 @@ debugStrImpl(RollSprite):
 msg_impl(RollSprite, update) do (dt: float):
   entity[RollSprite].roll *= 0.98
   
+proc p* [T] (some: T): T = 
+  some.repr.echo
+  return some
+
+proc p_chance* [T] (some: T): T =
+  if random(100) < 10: some.repr.echo
+  return some
+
 msg_impl(RollSprite, draw, 1000) do (R: PRenderer):
   var dest = entity[SpriteInst].rect
   let p = entity[Pos].addr
-  dest.x = p.x.cint
-  dest.y = p.y.cint 
+  dest.x = (p.x - (dest.w/2)).cint
+  dest.y = (p.y - (dest.h/2)).cint
   # set the row/col of the src rect
   # i want -1 to be 0 and 1 to be sprite.cols
   
   # so i take roll (it goes from -1 to 1), add 1 to it, divide by 2 
   # multiply by how many cols there are
-  
   entity[SpriteInst].rect.x = (
-    ((entity[RollSprite].roll + 1.0) / 2.0 * entity[SpriteInst].sprite.cols.float)
+    (entity[RollSprite].roll + 1.0) / 2.0 * entity[SpriteInst].sprite.cols.float
   ).floor.cint * entity[SpriteInst].rect.w
   entity[SpriteInst].rect.y = (
-    entity[Orientation].angleRad.radians2degrees / 360.0 * entity[SpriteInst].sprite.rows.float
+    (entity[Orientation].angleRad + HalfPI).radians2degrees / #radians2degrees because it does `mod 360` 
+    360.0 * 
+    entity[SpriteInst].sprite.rows.float
   ).floor.cint * entity[SpriteInst].rect.h 
   
   R.copy entity[SpriteInst].sprite.tex, entity[SpriteInst].rect.addr, dest.addr
@@ -273,5 +302,15 @@ msg_impl(RollSprite, roll) do (dir: TTurningState):
     entity[RollSprite].roll += 0.2
     if entity[RollSprite].roll > 1: entity[RollSprite].roll = 1
   else:nil
+
+
+type
+  Named* = object
+    name: string
+
+
+
+
+
 
 

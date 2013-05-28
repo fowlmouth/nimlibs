@@ -14,14 +14,18 @@ Vel.setInitializer proc(X: PEntity) =
   X[Vel].vec = random(360).float.degrees2radians.vectorForAngle * (1+(35* random(10)/10))
 
 SimpleAnim.setInitializer proc(X: PEntity) =
-  X.loadSimpleAnim NG, "Rock32a_32x32.png"
+  var frame: ast_comps.TFrame
+  frame.col = 0
+  frame.time = 1000.0
+  X[SimpleAnim].frames = @[frame]
+  X[SimpleAnim].timer = 1000.0
 
 
 proc handleEvent* (disp: var T_HID_Dispatcher; device: string; event: var sdl2.TEvent): bool =
   if disp.hasDevice(device) and disp.devices[device].takenBy:  
     result = 
-      getEnt(disp.devices[device].takenBy.val)[HID_Controller].cb(
-        getEnt(disp.devices[device].takenBy.val), event)
+      activeServer.getEnt(disp.devices[device].takenBy.val)[HID_Controller].cb(
+        activeServer.getEnt(disp.devices[device].takenBy.val), event)
 
 
 HID_DeviceImpl("Keyboard"):
@@ -58,3 +62,6 @@ HID_DeviceImpl("Keyboard"):
       else:NIL
     else: nil
 
+
+proc drawDebugStrings (E: PEntity; R: PRenderer) =
+  mlStringRGBA R, 10,10, E.debugStr, 0,150,50,255

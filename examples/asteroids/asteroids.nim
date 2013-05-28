@@ -7,57 +7,59 @@ randomize()
 setImageRoot getAppDir()/"gfx"
 
 var NG =  newSdlEngine()
-var entities: seq[TEntity]
 
-proc get_ent* (id: int): PEntity{.inline.} = entities[id]
+import ast_serv
+var activeServer: TCServ
 
 include ast_boilerplate
 
-var dom: TDomain
-var e_id_ctr = newIDgen[int]()
+var localPlayerID = -1
+template localPlayer:expr = activeServer.get_ent(localPlayerID)
+
+const Asteroids = [
+  "Rock24b_24x24.png",  
+  "Rock48b_48x48.png",
+  "Rock64b_64x64.png",
+  "Meteor_32x32.png",
+  "Rock32a_32x32.png",
+  "Rock48c_48x48.png",
+  "Rock64c_64x64.png",
+  "Rock24a_24x24.png",
+  "Rock48a_48x48.png",
+  "Rock64a_64x64.png"]
+
+proc init_random_asteroid (X: PEntity)= 
+  X.loadSimpleAnim NG, Asteroids[random(Asteroids.len)]
+
+proc add_asteroids (S: PCServ, num = 10) =
+  S.add_ents(
+    num,
+    Pos, Vel, SpriteInst, SimpleAnim, ToroidalBounds
+  ).each_ent_cb(
+    S,
+    init_random_asteroid
+  )
 
 
-proc add_ent* (ent: TEntity): int =
-  result = e_id_ctr.get
-  entities.ensureLen result+1
-  entities[result] = ent
-  get_ent(result).id = result
-
-proc add_ents* (num: int, components: varargs[int, `componentID`]): seq[int] =
-  var ty = dom.getTypeinfo(components)
+proc initialize_local_game =
+  activeServer = newServ()
   
-  newSeq result, 0
-  for i in 1 .. num:
-    let id = ty.NewEntity.add_ent
-    result.add id
+  activeServer.add_asteroids 30
+
+  localPlayerID = activeServer.add_ent(activeServer.domain.newEntity(Pos, Vel, SpriteInst, ToroidalBounds, 
+    HID_Controller, InputState, Acceleration, Orientation, RollSprite
+  ))
+
+  if(var (error, msg) = HID_Dispatcher.requestDevice("Keyboard", LocalPlayer); error):
+    echo "Could not register keyboard: ", msg
+  LocalPlayer[SpriteInst].loadSprite NG, "hornet_54x54.png"
 
 
-template eachEntity* (body: stmt): stmt {.immediate,dirty.}=
-  for idx in 0 .. high(entities):  
-    template entity: expr  = entities[idx]
-    if entity.id > -1:
-      body
-
-dom = newDomain()
-entities = @[]
-
-discard add_ents(10, Pos, Vel, SpriteInst, SimpleAnim, ToroidalBounds)
-
-VAR player = dom.newEntity(Pos, Vel, SpriteInst, ToroidalBounds, 
-  HID_Controller, InputState, Acceleration, Orientation, RollSprite
-).add_ent
-
-if(var (error, msg) = HID_Dispatcher.requestDevice("Keyboard", get_ent(player)); error):
-  echo "Could not register keyboard: ", msg
-get_ent(player)[SpriteInst].loadSprite NG, "hornet_54x54.png"
-
-
-proc drawDebugStrings (E: PEntity; R: PRenderer) =
-  R.mlStringRGBA 10,10,E.debugStr, 0,150,50,255
-
+initialize_local_game()
 
 var running = true
 var paused = false
+var debugDrawEnabled = false
 template stopRunning = running = false
 
 while running:
@@ -65,11 +67,12 @@ while running:
     case NG.evt.kind
     of QuitEvent: stopRunning
     of KeyDown:
-      if paused or (not paused and not HID_Dispatcher.handleEvent("Keyboard", NG.evt)):
+      if paused or not HID_Dispatcher.handleEvent("Keyboard", NG.evt):
         let k = NG.evt.evKeyboard.keysym.sym
         case k
         of K_ESCAPE: stopRunning
         of K_P: paused = not paused
+        of K_D: debugDrawEnabled = not debugDrawEnabled
         else:nil
     of keyUp:
       if not paused:
@@ -77,17 +80,22 @@ while running:
     else:nil
   
   let dt = NG.frameDeltaFLT
+  
   if not paused:
-    eachEntity:
+    eachEntity(activeServer):
       entity.update dt
     
     NG.setDrawColor 0,0,0,255
     NG.clear
     
-    eachEntity:
+    eachEntity(activeServer):
       entity.draw NG
     
-    player.get_ent.drawDebugStrings NG
+    LocalPlayer.drawDebugStrings NG
+    
+    if debugDrawEnabled:
+      eachEntity(activeServer):
+        entity.debugDraw NG
   
   NG.present
 
