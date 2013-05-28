@@ -87,9 +87,10 @@ proc degrees2radians*(deg: float): float {.inline.} = deg * pi / 180.0
 proc radians2degrees*(rad: float): float {.inline.} = (rad * 180.0 / PI) mod 360.0
 
 ## these functions are intended to work with sdl's coordinate system 
-proc vectorToAngle* (some: TVector2[float]): float = arctan2(-some.y, some.x)
+proc vectorToAngle* (some: TVector2[float]): float = arctan2(some.y, some.x)
   # return the angle in radians
-proc vectorForAngle*(radians: float): TVector2[float] {.inline.} = (x: cos(radians), y: sin(-radians))
+proc vectorForAngle*(radians: float): TVector2[float] {.inline.} = (
+  x: cos(radians), y: sin(radians))
   # return the vector for given radians
 
 
