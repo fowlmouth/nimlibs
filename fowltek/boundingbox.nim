@@ -14,12 +14,6 @@ proc right* (a: TBB): float {.inline.} = a.left + a.width
 proc bottom*(a: TBB): float {.inline.} = a.top + a.height
 proc area*  (a: TBB): float {.inline.} = a.width * a.height
 
-discard """ proc contains* (a, b: TBB): bool = not(
-  a.left > (b.right - 1) or
-  a.top > (b.bottom - 1) or
-  b.left > (a.right - 1) or 
-  b.top > (a.bottom - 1)               )
- """
 proc contains* (a, b: TBB): bool = (
   a.left <= b.left and a.right <= b.right and
   a.top <= b.top and a.bottom <= b.bottom )

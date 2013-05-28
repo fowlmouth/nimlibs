@@ -104,7 +104,7 @@ proc insertSubtree*[T] (node, leaf: PBB_Node[T]): PBB_Node[T] =
 
 proc insertLeaf*[T] (tree: PBB_Tree[T]; leaf: PBB_Node[T]) =
   if not tree.root.isNil:
-    tree.root = insertSubtree[T](tree.root, leaf)
+    tree.root = tree.root.insertSubtree(leaf)
   else:
     tree.root = leaf
 
