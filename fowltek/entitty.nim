@@ -13,11 +13,14 @@ template Issue431(x): expr = (x + 30)
 template Safe_Import* (module): stmt {.dirty, immediate.} =
   when not defined(module): import module
 
+#export typetraits.name
+export typetraits, tables, strutils
+
 template Entitty_Imports* : stmt {.dirty.} =
   ## Import entitty's required libraries, call this before you declare your components.
-  Safe_import typetraits
-  Safe_import tables
-  Safe_Import strutils
+  #Safe_import typetraits
+  #Safe_import tables
+  #Safe_Import strutils
 
 type
   PComponentInfo* = ref object{.inheritable.}
@@ -48,7 +51,7 @@ type
   PEntity* = var TEntity
   TEntity* = object
     typeInfo*: ptr TTypeInfo
-    data: PEntityData
+    data*: PEntityData
     userdata*: pointer
     ID* : int
   PEntityData = ptr array[1024, byte]
@@ -68,17 +71,19 @@ template isMulticastMsg*(id: expr[string]): bool = (bind messageTypes)[messageID
 template isMulticastMsg_ct (id: expr[string]): bool = messageTypes_ct[messageID_ct(id)] 
 
 template idCounter(name, varname): stmt =
-  var varname* {.inject, global.} = 0
+  var varname* {.inject, global.}: int
   proc `next name`: int =
     result = varname
     inc varname
 #idCounter MessageID, numMessages
 
 var numMessages* = 0
-var numMessages_ct {.compileTime.} = 0
 proc nextMessageID*: int = 
   result = numMessages
   inc numMessages
+
+
+var numMessages_ct {.compileTime.} = 0
 proc nextMessageID_CT* : int{.compileTime.}=
   result = numMessages_CT
   inc numMessages_CT

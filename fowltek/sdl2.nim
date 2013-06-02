@@ -580,9 +580,11 @@ proc SetRenderTarget*(renderer: PRenderer; texture: PTexture): SDL_Return {.
 # 
 proc GetRenderTarget*(renderer: PRenderer): PTexture {.
   importc: "SDL_GetRenderTarget".}
-proc RenderSetLogicalSize*(renderer: PRenderer; w, h: cint): cint {.importc: "SDL_RenderSetLogicalSize".}
 
-proc RenderGetLogicalSize*(renderer: PRenderer; w, h: var cint) {.
+proc SetLogicalSize*(renderer: PRenderer; w, h: cint): cint {.
+  importc: "SDL_RenderSetLogicalSize".}
+
+proc GetLogicalSize*(renderer: PRenderer; w, h: var cint) {.
   importc: "SDL_RenderGetLogicalSize".}
 #*
 #   \brief Set the drawing area for rendering on the current target.

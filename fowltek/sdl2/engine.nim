@@ -14,8 +14,10 @@ template import_all_sdl2_helpers*: stmt =
     import fowltek/sdl2/spritecache
 
 type 
-  TSdlEventHandler* = proc(engine: var TSdlEngine): bool
+  TSdlEventHandler* = proc(engine: PSdlEngine): bool
   TSdlEventHandlerSeq* = seq[TSdlEventHandler]
+  
+  PSDLEngine* = var TSdlEngine
   TSDLEngine* = object
     window*: PWindow
     render*: PRenderer
@@ -24,7 +26,7 @@ type
     fpsMan*: TFpsManager
     lastTick*: uint32
 
-proc destroy* (some: var TSdlEngine) {.inline.} =
+proc destroy* (some: PSdlEngine) {.inline.} =
   destroy some.render
   destroy some.window
 
@@ -32,7 +34,8 @@ proc newSDLEngine*(
     caption = "SDL Game", 
     startX, startY = 100, 
     sizeX = 640, sizeY = 480,
-    renderFlags = Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture): TSdlEngine =
+    renderFlags = Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture
+                  ): TSdlEngine =
   
   discard SDL_Init (INIT_EVERYTHING)
   result.window = CreateWindow(caption, startX.cint, startY.cint, 
@@ -43,24 +46,24 @@ proc newSDLEngine*(
   result.fpsMan.init
   result.lastTick = sdl2.getTicks()
 
-proc addHandler*(some: var TSdlEngine; handler: TSdlEventHandler) =
+proc addHandler*(some: PSdlEngine; handler: TSdlEventHandler) =
   if some.eventHandlers:
     some.eventHandlers.val.add handler
   else:
     some.eventHandlers = Just(@[ handler ])
 
-proc pollHandle*(some: var TSdlEngine): bool {.inline.} =
+proc pollHandle*(some: PSdlEngine): bool {.inline.} =
   ## Returns true if an event was polled.
   result = some.evt.pollEvent
   if result and some.eventHandlers:
     for eh in some.eventHandlers.val:
       if eh(some): break
 
-proc handleEvents*(some: var TSdlEngine) {.inline.} =
+proc handleEvents*(some: PSdlEngine) {.inline.} =
   while some.pollHandle:
     nil
 
-proc frameDeltaMS*(some: var TSdlEngine): int32 {.
+proc frameDeltaMS*(some: PSdlEngine): int32 {.
   inline.} = 
   ## Calculate the delta MS from the last frame.
   ## This is no use unless you call it once a frame.
@@ -68,17 +71,17 @@ proc frameDeltaMS*(some: var TSdlEngine): int32 {.
   result = int32(cur - some.lastTick)
   some.lastTick = cur
   
-proc frameDeltaFlt*(some: var TSdlEngine): float {.
+proc frameDeltaFlt*(some: PSdlEngine): float {.
   inline.} = some.frameDeltaMS / 1000
 
-proc delay*(some: var TSdlEngine) {.inline.} =
+proc delay*(some: PSdlEngine) {.inline.} =
   ## wait for fpsMan (use this or Renderer_PresentVSync to limit the framerate)
   some.fpsMan.delay
-proc delay*(some: var TSdlEngine; ms: uint32) {.inline.} =
+proc delay*(some: PSdlEngine; ms: uint32) {.inline.} =
   ## wait for `ms` milliseconds
   sdl2.delay ms
 
-converter toRenderer*(some: var TSdlEngine): sdl2.PRenderer = some.render
+converter toRenderer*(some: PSdlEngine): sdl2.PRenderer = some.render
 
 
 import fowltek/vector_math, math
@@ -97,7 +100,7 @@ proc vectorForAngle*(radians: float): TVector2[float] {.inline.} = (
 when isMainModule:
   var e = newSDLengine(sizeX = 640, sizeY = 480)
   var running = true
-  e.addHandler proc(E: var TSdlEngine): bool =
+  e.addHandler proc(E: PSdlEngine): bool =
     result = e.evt.kind == QuitEvent
     if result:
       running = false

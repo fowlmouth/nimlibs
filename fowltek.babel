@@ -1,9 +1,9 @@
 [Package]
 name = "fowltek"
-version = "1.0-RC"
+version = "0.9.3"
 author = "fowl"
 description = "Assorted wrappers and reusable libraries."
 license = "MIT"
 
 [Deps]
-Requires = "nimrod >= 0.9.1"
+Requires = "nimrod >= 0.9.3"
