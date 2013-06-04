@@ -1,9 +1,51 @@
+import macros
 
+import unsigned, strutils
+export unsigned, strutils.`%`
 
-when defined(Windows):
-  const libName = "SDL2.dll"
-elif defined(Linux):
-  const LibName = "libSDL2.so"
+when defined(SDL_Static):
+  static: echo "SDL2 will be statically linked."
+  
+  {.passl: gorge("pkg-config --libs sdl2").}
+  {.pragma: sdl_header, header: "<SDL2/SDL.h>".}
+  
+else:
+  static: echo "SDL2 will be dynamically linked."
+  
+  when defined(Windows):
+    const libName = "SDL2.dll"
+  elif defined(Linux):
+    const LibName = "libSDL2.so"
+
+macro sdl_struct (structName, record): stmt {.immediate.} =
+  ## when macros are available in type definitions this one will be a lot simpler..
+  
+  let structName_s = $structName
+  
+  when defined(SDL_Static):
+    var pragma_for_t = """{.importc: "SDL_$1", sdl_header.}""" % $structName#).parseExpr 
+  else:
+    var pragma_for_t = "{.pure.}"#.parseExpr  
+  
+  var t_type = parseExpr("type T$1* $2 = object" % [
+    structName_s, pragma_for_t] )
+
+  if not(record.len == 0):
+    var obj_ty = newNimNode(nnkRecList) 
+    record.copyChildrenTo obj_ty
+    ## export each field
+    for i in 0 .. < obj_ty.len:
+      for ii in 0 .. < obj_ty[i].len - 2: # last two are type and default val
+        obj_ty[i][ii] = obj_ty[i][ii].postfix("*")
+    
+    t_type[0][2][2] = obj_ty  # type/type def/object ty/field slot
+
+  result = newStmtList(
+    t_type,
+    parseExpr("type P$1* = ptr T$1" % structName_s)
+  )
+  
+  result.repr.echo
 
 include fowltek/sdl2/private/keycodes
 
@@ -74,11 +116,10 @@ type
   
   PMouseMotionEvent* = ptr TMouseMotionEvent
   TMouseMotionEvent* {.pure, final.} = object 
-    kind*: cint           #*< ::SDL_MOUSEMOTION 
+    kind*: cint           #*< ::SDL_MOUSEMOTION
     timestamp*: cint
     windowID*: cint       #*< The window with mouse focus, if any 
-    state*: Uint8           #*< The current button state \
-    padding*: array[0.. <3, byte]
+    state*: cint           #*< The current button state 
     x*: cint                #*< X coordinate, relative to window 
     y*: cint                #*< Y coordinate, relative to window 
     xrel*: cint             #*< The relative motion in the X direction 
@@ -244,8 +285,6 @@ type
   SDL_Return* {.size: sizeof(cint).} = enum SdlError = -1, SdlSuccess = 0 ##\
     ## Return value for many SDL functions. Any function that returns like this \
     ## should also be discardable
-  Bool8* {.size: sizeof(byte).} = enum False8 = 0, True8 = 1 ##\
-    ## Bool8 used only where the type is an int8 that will be 0 or 1
   Bool32* {.size: sizeof(cint).} = enum False32 = 0, True32 = 1 ##\
     ## SDL_bool
   TKeyState* {.size: sizeof(byte).} = enum KeyPressed = 0, KeyReleased
@@ -259,24 +298,27 @@ type
   TPoint* = tuple[x, y: cint]
   TRect* = tuple[x, y: cint, w, h: cint]
 
+
+discard """
   TDisplayMode* = object
     format*: cint
     w*, h*, refresh_rate*: cint
     driverData*: pointer
-  
+"""
 
-  PWindow* = ptr TWindow
-  TWindow* {.pure.} = object
 
-  PRenderer* = ptr TRenderer
-  TRenderer* {.pure.} = object
+sdl_struct DisplayMode, tuple[
+  format: cuint,
+  w,h,refresh_rate: cint,
+  driverData: pointer        ]
 
-  PTexture* = ptr TTexture
-  TTexture* {.pure.} = object
-  
+sdl_struct Window, tuple[]
+sdl_struct Renderer, tuple[]
+sdl_struct Texture, tuple[]
+sdl_struct Cursor, tuple[]
+
+type  
   PGLContext* = pointer
-  
-  PCursor* = ptr object{.pure.}
   
   SDL_Version* = object
     major*, minor*, patch*: uint8
@@ -309,21 +351,21 @@ type
       ## SDL_syswm.h and cast padding to the right type
 
 const ## WindowFlags
-  SDL_WINDOW_FULLSCREEN* = 0x00000001     #    /**< fullscreen window */
-  SDL_WINDOW_OPENGL*     = 0x00000002     #    /**< window usable with OpenGL context */
-  SDL_WINDOW_SHOWN*      = 0x00000004     #    /**< window is visible */
-  SDL_WINDOW_HIDDEN*     = 0x00000008     #    /**< window is not visible */
-  SDL_WINDOW_BORDERLESS* = 0x00000010     #    /**< no window decoration */
-  SDL_WINDOW_RESIZABLE*  = 0x00000020     #    /**< window can be resized */
-  SDL_WINDOW_MINIMIZED*  = 0x00000040     #    /**< window is minimized */
-  SDL_WINDOW_MAXIMIZED*  = 0x00000080     #    /**< window is maximized */
-  SDL_WINDOW_INPUT_GRABBED* = 0x00000100  #    /**< window has grabbed input focus */
-  SDL_WINDOW_INPUT_FOCUS* = 0x00000200    #    /**< window has input focus */
-  SDL_WINDOW_MOUSE_FOCUS* = 0x00000400    #    /**< window has mouse focus */
-  SDL_WINDOW_FOREIGN* = 0x00000800
+    SDL_WINDOW_FULLSCREEN*:cuint = 0x00000001#         /**< fullscreen window */
+    SDL_WINDOW_OPENGL*:cuint = 0x00000002#             /**< window usable with OpenGL context */
+    SDL_WINDOW_SHOWN*:cuint = 0x00000004#              /**< window is visible */
+    SDL_WINDOW_HIDDEN*:cuint = 0x00000008#             /**< window is not visible */
+    SDL_WINDOW_BORDERLESS*:cuint = 0x00000010#         /**< no window decoration */
+    SDL_WINDOW_RESIZABLE*:cuint = 0x00000020#          /**< window can be resized */
+    SDL_WINDOW_MINIMIZED*:cuint = 0x00000040#          /**< window is minimized */
+    SDL_WINDOW_MAXIMIZED*:cuint = 0x00000080#          /**< window is maximized */
+    SDL_WINDOW_INPUT_GRABBED*:cuint = 0x00000100#      /**< window has grabbed input focus */
+    SDL_WINDOW_INPUT_FOCUS*:cuint = 0x00000200#        /**< window has input focus */
+    SDL_WINDOW_MOUSE_FOCUS*:cuint = 0x00000400#        /**< window has mouse focus */
+    SDL_WINDOW_FULLSCREEN_DESKTOP*:cuint = ( SDL_WINDOW_FULLSCREEN or 0x00001000 )
+    SDL_WINDOW_FOREIGN*:cuint = 0x00000800#             /**< window not created by SDL */
 
 converter toBool*(some: bool32): bool = bool(some)
-converter toBool*(some: bool8): bool = bool(some)
 converter toBool*(some: SDL_Return): bool = some == SdlSuccess
 
 
@@ -365,17 +407,15 @@ type
   
   PSurface* = ptr TSurface
   TSurface* {.pure, final.} = object 
-    flags*: cint          #*< Read-only 
+    flags*: uint32          #*< Read-only 
     format*: ptr TPixelFormat #*< Read-only 
-    w*: cint
-    h*: cint                #*< Read-only 
-    pitch*: cint            #*< Read-only 
+    w*, h*, pitch*: int32   #*< Read-only 
     pixels*: pointer        #*< Read-write 
     userdata*: pointer      #*< Read-write  
-    locked*: cint           #*< Read-only 
+    locked*: int32          #*< Read-only   ## see if this should be bool32
     lock_data*: pointer     #*< Read-only 
-    clip_rect*: TRect    #*< Read-only 
-    map*: PBlitMap   #*< Private 
+    clip_rect*: TRect       #*< Read-only 
+    map: PBlitMap           #*< Private 
     refcount*: cint         #*< Read-mostly 
   
   TBlendMode* {.size: sizeof(cint).} = enum
@@ -502,16 +542,145 @@ type
     here*: ptr byte
     stop*: ptr byte
 
-{.push callConv: cdecl, dynlib: LibName.}
+when defined(SDL_Static):
+  {.push header: "<SDL2/SDL.h>".}
+else:
+  {.push callConv: cdecl, dynlib: LibName.}
 
 
-proc SDL_Init*(flags: cint): SDL_Return {.importc: "SDL_Init".}
-proc SDL_Quit*() {.importc: "SDL_Quit".}
-
-proc GetPlatform*(): cstring {.importc: "SDL_GetPlatform".}
-
+## functions that are not imported directly as SDL_$1  (usually they are prefixed witha type)
 proc GetWMInfo*(window: PWindow; info: var TWMInfo): Bool32 {.
   importc: "SDL_GetWindowWMInfo".}
+
+proc SetLogicalSize*(renderer: PRenderer; w, h: cint): cint {.
+  importc: "SDL_RenderSetLogicalSize".}
+
+proc GetLogicalSize*(renderer: PRenderer; w, h: var cint) {.
+  importc: "SDL_RenderGetLogicalSize".}
+
+
+proc SetDrawColor*(renderer: PRenderer; r, g, b: uint8, a = 255'u8): SDL_Return {.
+  importc: "SDL_SetRenderDrawColor", discardable.}
+proc GetDrawColor*(renderer: PRenderer; r, g, b, a: var uint8): SDL_Return {.
+  importc: "SDL_GetRenderDrawColor", discardable.}
+proc SetDrawBlendMode*(renderer: PRenderer; blendMode: TBlendMode): SDL_Return {.
+  importc: "SDL_SetRenderDrawBlendMode", discardable.}
+proc GetDrawBlendMode*(renderer: PRenderer; 
+  blendMode: var TBlendMode): SDL_Return {.
+  importc: "SDL_GetRenderDrawBlendMode", discardable.}
+
+
+proc destroy*(texture: PTexture) {.importc: "SDL_DestroyTexture".}
+proc destroy*(renderer: PRenderer) {.importc: "SDL_DestroyRenderer".}
+#proc destroy* (texture: PTexture) {.inline.} = texture.destroyTexture
+#proc destroy* (renderer: PRenderer) {.inline.} = renderer.destroyRenderer
+
+proc GetDisplayIndex*(window: PWindow): cint {.importc: "SDL_GetWindowDisplayIndex".}
+#*
+proc SetDisplayMode*(window: PWindow; 
+  mode: ptr TDisplayMode): SDL_Return {.importc: "SDL_SetWindowDisplayMode".}
+#*
+proc GetDisplayMode*(window: PWindow; mode: var TDisplayMode): cint  {.
+  importc: "SDL_GetWindowDisplayMode".}
+#*
+proc GetPixelFormat*(window: PWindow): Uint32 {.importc: "SDL_GetWindowPixelFormat".}
+
+#*
+#   \brief Get the numeric ID of a window, for logging purposes.
+# 
+proc GetID*(window: PWindow): Uint32 {.importc: "SDL_GetWindowID".}
+
+#*
+#   \brief Get the window flags.
+# 
+proc GetFlags*(window: PWindow): Uint32 {.importc: "SDL_GetWindowFlags".}
+#*
+#   \brief Set the title of a window, in UTF-8 format.
+#   
+#   \sa SDL_GetWindowTitle()
+# 
+proc SetTitle*(window: PWindow; title: cstring) {.importc: "SDL_SetWindowTitle".}
+#*
+#   \brief Get the title of a window, in UTF-8 format.
+#   
+#   \sa SDL_SetWindowTitle()
+# 
+proc GetTitle*(window: PWindow): cstring {.importc: "SDL_GetWindowTitle".}
+#*
+#   \brief Set the icon for a window.
+#   
+#   \param icon The icon for the window.
+# 
+proc SetIcon*(window: PWindow; icon: PSurface) {.importc: "SDL_SetWindowIcon".}
+#*
+proc SetData*(window: PWindow; name: cstring; 
+  userdata: pointer): pointer {.importc: "SDL_SetWindowData".}
+#*
+proc GetData*(window: PWindow; name: cstring): pointer {.importc: "SDL_GetWindowData".}
+#*
+proc SetPosition*(window: PWindow; x, y: cint) {.importc: "SDL_SetWindowPosition".}
+proc GetPosition*(window: PWindow; x, y: var cint)  {.importc: "SDL_GetWindowPosition".}
+#*
+proc SetSize*(window: PWindow; w, h: cint)  {.importc: "SDL_SetWindowSize".}
+proc GetSize*(window: PWindow; w, h: var cint) {.importc: "SDL_GetWindowSize".}
+
+proc SetBordered*(window: PWindow; bordered: bool32) {.importc: "SDL_SetWindowBordered".}
+
+
+proc SetFullscreen*(window: PWindow; fullscreen: bool32): SDL_Return {.importc: "SDL_SetWindowFullscreen".}
+proc GetSurface*(window: PWindow): PSurface {.importc: "SDL_GetWindowSurface".}
+
+proc UpdateSurface*(window: PWindow): SDL_Return  {.importc: "SDL_UpdateWindowSurface".}
+proc UpdateSurfaceRects*(window: PWindow; rects: ptr TRect; 
+  numrects: cint): SDL_Return  {.importc: "SDL_UpdateWindowSurfaceRects".}
+#*
+proc SetGrab*(window: PWindow; grabbed: bool32) {.importc: "SDL_SetWindowGrab".}
+proc GetGrab*(window: PWindow): bool32 {.importc: "SDL_GetWindowGrab".}
+proc SetBrightness*(window: PWindow; brightness: cfloat): SDL_Return {.importc: "SDL_SetWindowBrightness".}
+
+proc GetBrightness*(window: PWindow): cfloat {.importc: "SDL_GetWindowBrightness".}
+
+proc SetGammaRamp*(window: PWindow; 
+  red, green, blue: ptr Uint16): SDL_Return {.importc: "SDL_SetWindowGammaRamp".}
+#*
+#   \brief Get the gamma ramp for a window.
+#   
+#   \param red   A pointer to a 256 element array of 16-bit quantities to hold 
+#                the translation table for the red channel, or NULL.
+#   \param green A pointer to a 256 element array of 16-bit quantities to hold 
+#                the translation table for the green channel, or NULL.
+#   \param blue  A pointer to a 256 element array of 16-bit quantities to hold 
+#                the translation table for the blue channel, or NULL.
+#    
+#   \return 0 on success, or -1 if gamma ramps are unsupported.
+#   
+#   \sa SDL_SetWindowGammaRamp()
+# 
+proc GetGammaRamp*(window: PWindow; red: ptr Uint16; 
+                               green: ptr Uint16; blue: ptr Uint16): cint {.importc: "SDL_GetWindowGammaRamp".}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+{.push importc: "SDL_$1".}
+proc Init*(flags: cint): SDL_Return {.discardable.}
+proc Quit*  
+
+proc GetPlatform*(): cstring {.importc: "SDL_GetPlatform".}
 
 proc GetVersion*(ver: var SDL_Version) {.
   importc: "SDL_GetVersion".}
@@ -578,14 +747,11 @@ proc SetRenderTarget*(renderer: PRenderer; texture: PTexture): SDL_Return {.
   importc: "SDL_SetRenderTarget".}
 #*
 # 
-proc GetRenderTarget*(renderer: PRenderer): PTexture {.
-  importc: "SDL_GetRenderTarget".}
+proc GetRenderTarget*(renderer: PRenderer): PTexture 
 
-proc SetLogicalSize*(renderer: PRenderer; w, h: cint): cint {.
-  importc: "SDL_RenderSetLogicalSize".}
 
-proc GetLogicalSize*(renderer: PRenderer; w, h: var cint) {.
-  importc: "SDL_RenderGetLogicalSize".}
+
+
 #*
 #   \brief Set the drawing area for rendering on the current target.
 # 
@@ -599,6 +765,7 @@ proc GetLogicalSize*(renderer: PRenderer; w, h: var cint) {.
 #   \sa SDL_RenderGetViewport()
 #   \sa SDL_RenderSetLogicalSize()
 # 
+{.push importc: "SDL_Render$1".}
 proc SetViewport*(renderer: PRenderer; rect: ptr TRect): SDL_Return {.
   importc: "SDL_RenderSetViewport", discardable.}
 proc GetViewport*(renderer: PRenderer; rect: var TRect) {.
@@ -608,19 +775,6 @@ proc SetScale*(renderer: PRenderer; scaleX, scaleY: cfloat): SDL_Return {.
   importc: "SDL_RenderSetScale", discardable.}
 proc GetScale*(renderer: PRenderer; scaleX, scaleY: var cfloat) {.
   importc: "SDL_RenderGetScale".}
-
-proc SetDrawColor*(renderer: PRenderer; r, g, b: uint8, a = 255'u8): SDL_Return {.
-  importc: "SDL_SetRenderDrawColor", discardable.}
-proc GetDrawColor*(renderer: PRenderer; r, g, b, a: var uint8): SDL_Return {.
-  importc: "SDL_GetRenderDrawColor", discardable.}
-
-proc SetDrawBlendMode*(renderer: PRenderer; blendMode: TBlendMode): SDL_Return {.
-  importc: "SDL_SetRenderDrawBlendMode", discardable.}
-
-proc GetDrawBlendMode*(renderer: PRenderer; 
-  blendMode: var TBlendMode): SDL_Return {.
-  importc: "SDL_GetRenderDrawBlendMode", discardable.}
-
 proc DrawPoint*(renderer: PRenderer; x, y: cint): SDL_Return {.
   importc: "SDL_RenderDrawPoint", discardable.}
 #*
@@ -665,13 +819,13 @@ proc ReadPixels*(renderer: PRenderer; rect: var TRect; format: cint;
   pixels: pointer; pitch: cint): cint {.importc: "SDL_RenderReadPixels".}
 proc Present*(renderer: PRenderer) {.importc: "SDL_RenderPresent".}
 
-proc destroy*(texture: PTexture) {.importc: "SDL_DestroyTexture".}
-proc destroy*(renderer: PRenderer) {.importc: "SDL_DestroyRenderer".}
+{.pop.}
 
 
-proc bindTexture*(texture: PTexture; texw, texh: var cfloat): cint {.
-  importc: "SDL_GL_BindTexture".}
-proc unbindTexture*(texture: PTexture) {.importc: "SDL_GL_UnbindTexture".}
+{.push importc: "SDL_GL_$1".}
+proc BindTexture*(texture: PTexture; texw, texh: var cfloat): cint 
+proc UnbindTexture*(texture: PTexture)
+{.pop.}
 
 proc CreateRGBSurface*(flags: cint; width, height, depth: cint; 
   Rmask, Gmask, BMask, Amask: cint): PSurface {.importc: "SDL_CreateRGBSurface".}
@@ -679,7 +833,7 @@ proc CreateRGBSurfaceFrom*(pixels: pointer; width, height, depth, pitch: cint;
   Rmask, Gmask, Bmask, Amask: cint): PSurface {.
   importc: "SDL_CreateRGBSurfaceFrom".}
 
-proc destroy*(surface: PSurface) {.importc: "SDL_FreeSurface".}
+proc FreeSurface*(surface: PSurface) 
 
 proc SetSurfacePalette*(surface: PSurface; palette: ptr TPalette): cint {.
   importc:"SDL_SetSurfacePalette".}
@@ -849,64 +1003,20 @@ proc GetCurrentDisplayMode*(displayIndex: cint;
 proc GetClosestDisplayMode*(displayIndex: cint; mode: ptr TDisplayMode; 
                                 closest: ptr TDisplayMode): ptr TDisplayMode {.importc: "SDL_GetClosestDisplayMode".}
 #*
-proc GetDisplayIndex*(window: PWindow): cint {.importc: "SDL_GetWindowDisplayIndex".}
-#*
-proc SetDisplayMode*(window: PWindow; 
-  mode: ptr TDisplayMode): SDL_Return {.importc: "SDL_SetWindowDisplayMode".}
-#*
-proc GetDisplayMode*(window: PWindow; mode: var TDisplayMode): cint  {.
-  importc: "SDL_GetWindowDisplayMode".}
-#*
-proc GetPixelFormat*(window: PWindow): Uint32 {.importc: "SDL_GetWindowPixelFormat".}
 #*
 proc CreateWindow*(title: cstring; x, y, w, h: cint; 
                        flags: Uint32): PWindow  {.importc: "SDL_CreateWindow".}
 #*
 proc CreateWindowFrom*(data: pointer): PWindow {.importc: "SDL_CreateWindowFrom".}
-#*
-#   \brief Get the numeric ID of a window, for logging purposes.
-# 
-proc GetID*(window: PWindow): Uint32 {.importc: "SDL_GetWindowID".}
+
 #*
 #   \brief Get a window from a stored ID, or NULL if it doesn't exist.
 # 
 proc GetWindowFromID*(id: Uint32): PWindow {.importc: "SDL_GetWindowFromID".}
-#*
-#   \brief Get the window flags.
-# 
-proc GetFlags*(window: PWindow): Uint32 {.importc: "SDL_GetWindowFlags".}
-#*
-#   \brief Set the title of a window, in UTF-8 format.
-#   
-#   \sa SDL_GetWindowTitle()
-# 
-proc SetTitle*(window: PWindow; title: cstring) {.importc: "SDL_SetWindowTitle".}
-#*
-#   \brief Get the title of a window, in UTF-8 format.
-#   
-#   \sa SDL_SetWindowTitle()
-# 
-proc GetTitle*(window: PWindow): cstring {.importc: "SDL_GetWindowTitle".}
-#*
-#   \brief Set the icon for a window.
-#   
-#   \param icon The icon for the window.
-# 
-proc SetIcon*(window: PWindow; icon: PSurface) {.importc: "SDL_SetWindowIcon".}
-#*
-proc SetData*(window: PWindow; name: cstring; 
-  userdata: pointer): pointer {.importc: "SDL_SetWindowData".}
-#*
-proc GetData*(window: PWindow; name: cstring): pointer {.importc: "SDL_GetWindowData".}
-#*
-proc SetPosition*(window: PWindow; x, y: cint) {.importc: "SDL_SetWindowPosition".}
-proc GetPosition*(window: PWindow; x, y: var cint)  {.importc: "SDL_GetWindowPosition".}
-#*
-proc SetSize*(window: PWindow; w, h: cint)  {.importc: "SDL_SetWindowSize".}
-proc GetSize*(window: PWindow; w, h: var cint) {.importc: "SDL_GetWindowSize".}
-proc GetSize*(window: PWindow): TPoint {.inline.} = getSize(window, result.x, result.y)
 
-proc SetBordered*(window: PWindow; bordered: bool32) {.importc: "SDL_SetWindowBordered".}
+
+
+
 #
 proc ShowWindow*(window: PWindow) {.importc: "SDL_ShowWindow".}
 proc HideWindow*(window: PWindow) {.importc: "SDL_HideWindow".}
@@ -917,40 +1027,9 @@ proc MinimizeWindow*(window: PWindow) {.importc: "SDL_MinimizeWindow".}
 #*
 # 
 proc RestoreWindow*(window: PWindow) {.importc: "SDL_RestoreWindow".}
-
-proc SetFullscreen*(window: PWindow; fullscreen: bool32): SDL_Return {.importc: "SDL_SetWindowFullscreen".}
-proc GetSurface*(window: PWindow): PSurface {.importc: "SDL_GetWindowSurface".}
-
-proc UpdateSurface*(window: PWindow): SDL_Return  {.importc: "SDL_UpdateWindowSurface".}
-proc UpdateSurfaceRects*(window: PWindow; rects: ptr TRect; 
-  numrects: cint): SDL_Return  {.importc: "SDL_UpdateWindowSurfaceRects".}
-#*
-proc SetGrab*(window: PWindow; grabbed: bool32) {.importc: "SDL_SetWindowGrab".}
-proc GetGrab*(window: PWindow): bool32 {.importc: "SDL_GetWindowGrab".}
-proc SetBrightness*(window: PWindow; brightness: cfloat): SDL_Return {.importc: "SDL_SetWindowBrightness".}
-
-proc GetBrightness*(window: PWindow): cfloat {.importc: "SDL_GetWindowBrightness".}
-
-proc SetGammaRamp*(window: PWindow; 
-  red, green, blue: ptr Uint16): SDL_Return {.importc: "SDL_SetWindowGammaRamp".}
-#*
-#   \brief Get the gamma ramp for a window.
-#   
-#   \param red   A pointer to a 256 element array of 16-bit quantities to hold 
-#                the translation table for the red channel, or NULL.
-#   \param green A pointer to a 256 element array of 16-bit quantities to hold 
-#                the translation table for the green channel, or NULL.
-#   \param blue  A pointer to a 256 element array of 16-bit quantities to hold 
-#                the translation table for the blue channel, or NULL.
-#    
-#   \return 0 on success, or -1 if gamma ramps are unsupported.
-#   
-#   \sa SDL_SetWindowGammaRamp()
-# 
-proc GetGammaRamp*(window: PWindow; red: ptr Uint16; 
-                               green: ptr Uint16; blue: ptr Uint16): cint {.importc: "SDL_GetWindowGammaRamp".}
                                
-proc Destroy*(window: PWindow) {.importc: "SDL_DestroyWindow".}
+proc DestroyWindow*(window: PWindow) 
+
 proc IsScreenSaverEnabled*(): Bool32 {.importc: "SDL_IsScreenSaverEnabled".}
 proc EnableScreenSaver*() {.importc: "SDL_EnableScreenSaver".}
 proc DisableScreenSaver*() {.importc: "SDL_DisableScreenSaver".}
@@ -1018,15 +1097,15 @@ proc GetScancodeName*(scancode: TScanCode): cstring {.importc: "SDL_GetScancodeN
   #Get a human-readable name for a scancode
 proc GetScancodeFromName*(name: cstring): TScanCode {.importc: "SDL_GetScancodeFromName".}
   #Get a scancode from a human-readable name
-proc GetKeyname*(key: cint): cstring {.importc: "SDL_GetKeyName".}
+proc GetKeyName*(key: cint): cstring 
   #Get a human-readable name for a key
-proc GetKeyFromName*(name: cstring): cint {.importc: "SDL_GetKeyFromName".}
+proc GetKeyFromName*(name: cstring): cint 
   #Get a key code from a human-readable name
-proc StartTextInput* {.importc: "SDL_StartTextInput".}
+proc StartTextInput* 
   #Start accepting Unicode text input events
-proc IsTextInputActive*: bool {.importc: "SDL_IsTextInputActive".}
-proc StopTextInput* {.importc: "SDL_StopTextInput".}
-proc SetTextInputRect*(rect: ptr TRect) {.importc: "SDL_SetTextInputRect".}
+proc IsTextInputActive*: bool 
+proc StopTextInput* 
+proc SetTextInputRect*(rect: ptr TRect) 
 proc HasScreenKeyboardSupport*: bool {.importc: "SDL_HasScreenKeyboardSupport".}
 proc IsScreenKeyboardShown*(window: PWindow): bool {.importc: "SDL_IsScreenKeyboardShown".}
 
@@ -1062,8 +1141,8 @@ proc CreateColorCursor*(surface: PSurface; hot_x, hot_y: cint): PCursor {.
   importc: "SDL_CreateColorCursor".}
 proc SetCursor*(cursor: PCursor) {.importc: "SDL_SetCursor".}
 proc GetCursor*(): PCursor {.importc: "SDL_GetCursor".}
-proc destroy*(cursor: PCursor) {.importc: "SDL_FreeCursor".}
-proc ShowCursor*(toggle: bool): Bool32 {.importc: "SDL_ShowCursor", discardable.}
+proc FreeCursor* (cursor: PCursor)
+proc ShowCursor* (toggle: bool): Bool32 {.importc: "SDL_ShowCursor", discardable.}
 
 
 # Function prototypes 
@@ -1173,6 +1252,7 @@ proc GL_SwapWindow*(window: PWindow) {.importc: "SDL_GL_SwapWindow".}
 
 
 {.pop.}
+{.pop.}
 
 const
   SDL_QUERY* = -1
@@ -1183,7 +1263,6 @@ const
 ##define SDL_GetEventState(type) SDL_EventState(type, SDL_QUERY)
 proc GetEventState*(kind: TEventType): uint8 {.inline.} = EventState(kind, SDL_QUERY)
 
-import unsigned
 ##define SDL_BUTTON(X)		(1 << ((X)-1))
 template SDL_BUTTON*(x: uint8): uint8 = (1'u8 shl (x - 1'u8))
 const 
@@ -1202,15 +1281,24 @@ const
                
 ## compatibility functions
 
+proc GetSize*(window: PWindow): TPoint {.inline.} = getSize(window, result.x, result.y)
+
 proc DestroyTexture*(texture: PTexture) {.inline.} = destroy(texture)
+#proc destroy* (texture: PTexture) {.inline.} = texture.destroyTexture
 proc DestroyRenderer*(renderer: PRenderer) {.inline.} = destroy(renderer)
-proc FreeCursor*(cursor: PCursor) {.inline.} = destroy(cursor)
-proc FreeSurface*(surface: PSurface) {.inline.} = destroy(surface)
+#proc destroy* (renderer: PRenderer) {.inline.} = renderer.destroyRenderer
+
+proc destroy* (window: PWindow) {.inline.} = window.destroyWindow
+proc destroy* (cursor: PCursor) {.inline.} = cursor.freeCursor
+proc destroy* (surface: PSurface) {.inline.} = surface.freeSurface
 
 proc BlitSurface*(src: PSurface; srcrect: ptr TRect; dst: PSurface; 
   dstrect: ptr TRect): SDL_Return {.inline, discardable.} = UpperBlit(src, srcrect, dst, dstrect)
 proc BlitScaled*(src: PSurface; srcrect: ptr TRect; dst: PSurface; 
   dstrect: ptr TRect): SDL_Return {.inline, discardable.} = UpperBlitScaled(src, srcrect, dst, dstrect) 
+
+proc SDL_Init*(flags: cint): SDL_Return {.inline, deprecated.} = sdl2.Init(flags)
+proc SDL_Quit*() {.inline,deprecated.} = sdl2.quit()
 
 #/#define SDL_LoadBMP(file)	SDL_LoadBMP_RW(SDL_RWFromFile(file, "rb"), 1)
 proc LoadBMP*(file: string): PSurface {.inline.} = LoadBMP_RW(RWFromFile(cstring(file), "rb"), 1)
