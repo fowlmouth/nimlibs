@@ -19,33 +19,39 @@ else:
 
 macro sdl_struct (structName, record): stmt {.immediate.} =
   ## when macros are available in type definitions this one will be a lot simpler..
-  
   let structName_s = $structName
   
   when defined(SDL_Static):
-    var pragma_for_t = """{.importc: "SDL_$1", sdl_header.}""" % $structName#).parseExpr 
+    var pragma_for_t = """{.importc: "SDL_$1", sdl_header.}""" % 
+      structName_s
+    if record.len == 0:
+      pragma_for_t[-2.. -1] = ", incompleteStruct.}"
+     
   else:
     var pragma_for_t = "{.pure.}"#.parseExpr  
   
   var t_type = parseExpr("type T$1* $2 = object" % [
     structName_s, pragma_for_t] )
 
+  var recdList = newEmptyNode()
   if not(record.len == 0):
-    var obj_ty = newNimNode(nnkRecList) 
-    record.copyChildrenTo obj_ty
+    recdList = newNimNode(nnkRecList) 
+    record.copyChildrenTo recdList
     ## export each field
-    for i in 0 .. < obj_ty.len:
-      for ii in 0 .. < obj_ty[i].len - 2: # last two are type and default val
-        obj_ty[i][ii] = obj_ty[i][ii].postfix("*")
-    
-    t_type[0][2][2] = obj_ty  # type/type def/object ty/field slot
+    for i in 0 .. < recdList.len:
+      for ii in 0 .. < recdList[i].len - 2: # last two are type and default val
+        recdList[i][ii] = recdList[i][ii].postfix("*")
 
-  result = newStmtList(
-    t_type,
-    parseExpr("type P$1* = ptr T$1" % structName_s)
-  )
   
-  result.repr.echo
+  t_type[0][2][2] = recdList  # type/type def/object ty/field slot
+
+  t_type.add parseExpr("type P$1* = ptr T$1" % structName_s)[0]
+  
+  when defined(Debug):
+    t_type.repr.echo
+  
+  return t_type
+  
 
 include fowltek/sdl2/private/keycodes
 
@@ -1281,6 +1287,8 @@ const
                
 ## compatibility functions
 
+proc CreateRGBSurface* (width, height, depth: int32): PSurface {.inline.} = sdl2.CreateRGBSurface(
+  0, width, height, depth, 0,0,0,0)
 proc GetSize*(window: PWindow): TPoint {.inline.} = getSize(window, result.x, result.y)
 
 proc DestroyTexture*(texture: PTexture) {.inline.} = destroy(texture)
