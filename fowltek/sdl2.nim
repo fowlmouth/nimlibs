@@ -26,7 +26,7 @@ macro sdl_struct (structName, record): stmt {.immediate.} =
       structName_s
     if record.len == 0:
       pragma_for_t[-2.. -1] = ", incompleteStruct.}"
-     
+
   else:
     var pragma_for_t = "{.pure.}"#.parseExpr  
   
@@ -123,13 +123,14 @@ type
   PMouseMotionEvent* = ptr TMouseMotionEvent
   TMouseMotionEvent* {.pure, final.} = object 
     kind*: cint           #*< ::SDL_MOUSEMOTION
-    timestamp*: cint
-    windowID*: cint       #*< The window with mouse focus, if any 
-    state*: cint           #*< The current button state 
-    x*: cint                #*< X coordinate, relative to window 
-    y*: cint                #*< Y coordinate, relative to window 
-    xrel*: cint             #*< The relative motion in the X direction 
-    yrel*: cint             #*< The relative motion in the Y direction 
+    timestamp*: uint32
+    windowID*: uint32       #*< The window with mouse focus, if any
+    which*: uint32 
+    state*: uint32           #*< The current button state 
+    x*: int32                #*< X coordinate, relative to window 
+    y*: int32                #*< Y coordinate, relative to window 
+    xrel*: int32             #*< The relative motion in the X direction 
+    yrel*: int32             #*< The relative motion in the Y direction 
   
   PMouseButtonEvent* = ptr TMouseButtonEvent 
   TMouseButtonEvent* {.pure, final.} = object 
