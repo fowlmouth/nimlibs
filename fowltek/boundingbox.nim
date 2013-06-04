@@ -15,8 +15,8 @@ proc bottom*(a: TBB): float {.inline.} = a.top + a.height
 proc area*  (a: TBB): float {.inline.} = a.width * a.height
 
 proc contains* (a, b: TBB): bool = (
-  a.left <= b.left and a.right <= b.right and
-  a.top <= b.top and a.bottom <= b.bottom )
+  a.left <= b.left and b.right <= a.right and
+  a.top <= b.top   and b.bottom <= a.bottom )
 
 proc unionArea* (a, b: TBB): float {.inline.} = (
   (a.right.max(b.right) - a.left.min(b.left)) *
