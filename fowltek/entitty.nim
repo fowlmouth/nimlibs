@@ -2,8 +2,9 @@ import fowltek/pointer_arithm, algorithm, sequtils
 import hashes, tables, typetraits, strutils
 import macros, fowltek/macro_dsl
 
-when NimrodVersion < "0.9.2":
-  {.error: "Entitty is written with features that require at least Nimrod 0.9.2. Gonna need you to go ahead and upgrade, thanks.".}
+when NimrodVersion < "0.9.3":
+  {.error: "Entitty is written with features that require bleeding-edge Nimrod.".}
+  # "Entitty is written with features that require at least Nimrod 0.9.2. Gonna need you to go ahead and upgrade, thanks.".}
 
 {.deadCodeElim: on.}
 
@@ -401,7 +402,6 @@ macro multicast*(func): stmt =
   
   resultish.body = newStmtList(result_body)
   result = newStmtList(
-    parseExpr("entitty_imports()"),
     parseExpr("""isMulticastMsg("$1") = true""" % msg_name),
     resultish)
   

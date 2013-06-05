@@ -44,6 +44,6 @@ proc refitFor* (bb: var TBB; a, b: TBB) =
 
 proc collidesWith* (a, b: TBB): bool {.inline.} = (
   ( (a.left >= b.left and a.left <= b.right) or (b.left >= a.left and b.left <= a.right) ) and
-  ( (a.top >= b.top and a.top <= b.bottom) or (b.top >= a.top and b.top <= a.bottom) ) )
+  ( (a.top >= b.top   and a.top <= b.bottom) or (b.top >= a.top   and b.top <= a.bottom) ) )
 
 
