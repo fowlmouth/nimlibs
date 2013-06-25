@@ -1,5 +1,5 @@
-import tables, fowltek/tmaybe, fowltek/boundingbox
-export tables, boundingbox, tmaybe
+import tables, fowltek/maybe_t, fowltek/boundingbox
+export tables, boundingbox, maybe_t
 
 type
   PBB_Node*[T] = ref TBB_Node[T] 

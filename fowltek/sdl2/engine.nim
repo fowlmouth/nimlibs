@@ -3,7 +3,7 @@
 ## * assisted window and renderer creation
 ## * easy to use event handling system
 import fowltek/sdl2, fowltek/sdl2/gfx
-import fowltek/tmaybe, unsigned
+import fowltek/maybe_t, unsigned
 
 template import_all_sdl2_modules*: stmt =
   import fowltek/sdl2, fowltek/sdl2/image, fowltek/sdl2/gfx, fowltek/sdl2/ttf
