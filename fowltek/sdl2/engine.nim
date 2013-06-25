@@ -12,6 +12,9 @@ template import_all_sdl2_helpers*: stmt =
     import fowltek/sdl2/color
   when not defined(spriteCache):
     import fowltek/sdl2/spritecache
+template import_all_sdl2_things*: stmt =
+  import_all_sdl2_modules
+  import_all_sdl2_helpers
 
 type 
   TSdlEventHandler* = proc(engine: PSdlEngine): bool
@@ -51,6 +54,10 @@ proc addHandler*(some: PSdlEngine; handler: TSdlEventHandler) =
     some.eventHandlers.val.add handler
   else:
     some.eventHandlers = Just(@[ handler ])
+
+proc handleEvent* (handlers: seq[proc(X: var TEvent): bool]; event: var TEvent): bool =
+  for h in handlers:
+    if h(event): return true
 
 proc pollHandle*(some: PSdlEngine): bool {.inline.} =
   ## Returns true if an event was polled.

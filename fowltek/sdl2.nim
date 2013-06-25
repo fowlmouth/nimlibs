@@ -687,31 +687,25 @@ proc GetGammaRamp*(window: PWindow; red: ptr Uint16;
 proc Init*(flags: cint): SDL_Return {.discardable.}
 proc Quit*  
 
-proc GetPlatform*(): cstring {.importc: "SDL_GetPlatform".}
+proc GetPlatform*(): cstring 
 
-proc GetVersion*(ver: var SDL_Version) {.
-  importc: "SDL_GetVersion".}
-proc GetRevision*(): cstring {.importc: "SDL_GetRevision".}
-proc GetRevisionNumber*(): cint {.importc: "SDL_GetRevisionNumber".}
+proc GetVersion*(ver: var SDL_Version) 
+proc GetRevision*(): cstring 
+proc GetRevisionNumber*(): cint 
 
 
-proc GetNumRenderDrivers*(): cint {.importc: "SDL_GetNumRenderDrivers".}
-proc GetRenderDriverInfo*(index: cint; info: var TRendererInfo): SDL_Return {.
-  importc: "SDL_GetRenderDriverInfo".}
+proc GetNumRenderDrivers*(): cint 
+proc GetRenderDriverInfo*(index: cint; info: var TRendererInfo): SDL_Return 
 proc CreateWindowAndRenderer*(width, height: cint; window_flags: Uint32; 
-  window: ptr PWindow; renderer: ptr PRenderer): SDL_Return {.
-  importc: "SDL_CreateWindowAndRenderer".}
+  window: var PWindow; renderer: var PRenderer): SDL_Return 
 
-proc CreateRenderer*(window: PWindow; index: cint; flags: cint): PRenderer {.
-  importc: "SDL_CreateRenderer".}
-proc CreateSoftwareRenderer*(surface: PSurface): PRenderer {.
-  importc: "SDL_CreateSoftwareRenderer".}
-proc GetRenderer*(window: PWindow): PRenderer {.importc: "SDL_GetRenderer".}
-proc GetRendererInfo*(renderer: PRenderer; info: PRendererInfo): cint {.
-  importc: "SDL_GetRendererInfo".}
+proc CreateRenderer*(window: PWindow; index: cint; flags: cint): PRenderer 
+proc CreateSoftwareRenderer*(surface: PSurface): PRenderer 
+proc GetRenderer*(window: PWindow): PRenderer 
+proc GetRendererInfo*(renderer: PRenderer; info: PRendererInfo): cint 
 
 proc CreateTexture*(renderer: PRenderer; format: Uint32; 
-  access, w, h: cint): PTexture {.importc: "SDL_CreateTexture".}
+  access, w, h: cint): PTexture 
 
 proc CreateTextureFromSurface*(renderer: PRenderer; surface: PSurface): PTexture {.
   importc: "SDL_CreateTextureFromSurface".}
