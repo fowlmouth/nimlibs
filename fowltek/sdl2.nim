@@ -16,6 +16,8 @@ else:
     const libName = "SDL2.dll"
   elif defined(Linux):
     const LibName = "libSDL2.so"
+  elif defined(macosx):
+    const LibName = "libSDL2.so"
 
 macro sdl_struct (structName, record): stmt {.immediate.} =
   ## when macros are available in type definitions this one will be a lot simpler..
