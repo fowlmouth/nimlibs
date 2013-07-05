@@ -31,6 +31,10 @@ import fowltek/sdl2
 
 when defined(Linux):
   const LibName = "libSDL2_gfx.so"
+elif defined(macosx):
+  const LibName = "libSDL2_gfx.so"
+elif defined(Windows):
+  const LibName = "SDL2_gfx.dll"
 else: {.error.}
 
 
