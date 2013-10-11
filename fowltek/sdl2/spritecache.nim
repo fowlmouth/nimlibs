@@ -54,6 +54,13 @@ proc get* (cache: var TSpriteCache; R: PRenderer; file: string): PSprite =
   
   cache.tab[file] = result
 
+proc getFrame* (sprite: PSprite; row, col: int; rect: var TRect) {.inline.} =
+  rect = sprite.defaultRect
+  rect.x = rect.w * row
+  rect.y = rect.h * col
+proc getFrame* (sprite: PSprite; row,col: int): TRect {.inline.} =
+  sprite.getFrame row, col, result
+
 when false:
   ## an instantiation needs only to copy the defaultRect from the sprite and keep a reference to the sprite
   var cache = newSpriteCache()
