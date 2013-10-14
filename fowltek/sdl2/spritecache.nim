@@ -14,17 +14,18 @@ type
     imageRoot: string
 
 
-proc newSpriteCache*(initialSize = 64): TSpriteCache = 
-  result.tab = initTable[string, PSprite](initialSize) 
+proc setImageRoot* (cache: var TSpriteCache; dir: string) {.inline.} = 
+  cache.imageRoot = expandFileName(dir)
+
+proc newSpriteCache*(initialSize = 64; root = "."): TSpriteCache = 
+  result.tab = initTable[string, PSprite](initialSize)
+  result.setImageRoot root 
 
 proc free (some: PSprite) =
   destroy some.tex
 
 
 let imageFilenamePattern = re".+_(\d+)x(\d+)\.\S{3,4}"
-
-proc setImageRoot* (cache: var TSpriteCache; dir: string) {.inline.} = 
-  cache.imageRoot = dir
 
 proc get* (cache: var TSpriteCache; R: PRenderer; file: string): PSprite =
   result = cache.tab[file]
