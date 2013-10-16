@@ -19,7 +19,7 @@ type
     window*: PWindow
     render*: PRenderer
     running: bool
-    sprites: TSpriteCache
+    sprites*: TSpriteCache
   
   PGameState* = ref object of TObject
     update*: TGameStateUpdateCB
@@ -86,7 +86,8 @@ proc newGameStateManager* (
     caption = "SDL Game", 
     startX, startY = 100, 
     sizeX = 640, sizeY = 480,
-    renderFlags = Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture
+    renderFlags = Renderer_Accelerated or Renderer_PresentVsync or Renderer_TargetTexture,
+    imageRoot = "assets"
   ) : TGameEngine =
   
   discard sdl2.Init (INIT_EVERYTHING)
@@ -94,7 +95,7 @@ proc newGameStateManager* (
   result = TGameEngine(
     gameStates: @[gs], 
     running: true,
-    sprites: newSpriteCache(root = "assets"))
+    sprites: newSpriteCache(root = imageRoot))
   
   result.window = CreateWindow(caption, startX.cint, startY.cint, 
     sizeX.cint, sizeY.cint, SDL_WINDOW_SHOWN)
