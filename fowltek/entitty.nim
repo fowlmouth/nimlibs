@@ -65,7 +65,7 @@ type
   E_InvalidComponent* = object of E_Base
   E_BadEntity* = object of E_Base
 var
-  allComponents*: seq[PComponentInfo] = @[]
+  allComponents* {.global.}: seq[PComponentInfo] = @[]
   messageTypes*: array[512, bool] ## true if the message is multicast
   messageTypes_ct {.compileTime.}: array[512, bool]
 template isMulticastMsg*(id: expr[string]): bool = (bind messageTypes)[messageID(id)]
@@ -333,7 +333,13 @@ macro unicast*(func): stmt =
   
   var f_call_args = newSeq[PNimrodNode]()
   for i in 1 .. <len(f.params):
-    f_call_args.add(!! $ f.params[i][0])
+    #when defined(Debug): echo "f.params[$1] => $2".format(i, lispRepr(f.params[i]))
+    #f_call_args.add(!! $ f.params[i][0])
+    ## example here: 
+    ## IdentDefs(Ident(!"entity"), Ident(!"PEntity"), Empty())  ## this one gets inserted
+    ## IdentDefs(Ident(!"x"), Ident(!"y"), Ident(!"float"), Empty())  ## example of (x,y: float)
+    for index in 0 .. f.params[i].len - 3:
+      f_call_args.add(!! $ f.params[i][index])
   
   var f_call = newCall(
     newNimNode(nnkCast).add(f_signature, f_pointer)
@@ -488,8 +494,9 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
     result.components[index] = allComponents[component_id]
     result.allComponents[component_id] = allComponents[component_id]
     template thisComponent: expr =
-      when false: result.allComponents[component_id]
-      else: result.components[index]
+      #when false: result.allComponents[component_id]
+      #else: 
+      result.components[index]
     
     result.offsets[component_id] = offs
     inc offs, thisComponent.size
