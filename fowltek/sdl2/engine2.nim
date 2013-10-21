@@ -81,7 +81,7 @@ proc run * (M: PGameEngine) {.inline.} =
     
     M.present
 
-proc newGameStateManager* (
+proc newGameEngine* (
     gs: PGameState;
     caption = "SDL Game", 
     startX, startY = 100, 

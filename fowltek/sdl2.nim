@@ -24,13 +24,14 @@ macro sdl_struct (structName, record): stmt {.immediate.} =
   let structName_s = $structName
   
   when defined(SDL_Static):
-    var pragma_for_t = """{.importc: "SDL_$1", sdl_header.}""" % 
+    var pragma_for_t = """{.importc: "SDL_$1", sdl_header""" % 
       structName_s
     if record.len == 0:
-      pragma_for_t[-2.. -1] = ", incompleteStruct.}"
+      pragma_for_t.add ", incompleteStruct"
+    pragma_for_t.add ".}"
 
   else:
-    var pragma_for_t = "{.pure.}"#.parseExpr  
+    var pragma_for_t = "{.pure.}"
   
   var t_type = parseExpr("type T$1* $2 = object" % [
     structName_s, pragma_for_t] )
@@ -138,7 +139,8 @@ type
   TMouseButtonEvent* {.pure, final.} = object 
     kind*: Uint32           #*< ::SDL_MOUSEBUTTONDOWN or ::SDL_MOUSEBUTTONUP 
     timestamp*: Uint32
-    windowID*: Uint32       #*< The window with mouse focus, if any 
+    windowID*: Uint32       #*< The window with mouse focus, if any
+    which*: uint32
     button*: Uint8          #*< The mouse button index 
     state*: Uint8           #*< ::SDL_PRESSED or ::SDL_RELEASED 
     padding1*: Uint8
