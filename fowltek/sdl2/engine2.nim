@@ -105,8 +105,8 @@ proc newGameEngine* (
   result.lastTick = sdl2.getTicks()
   
 
-proc defaultDraw (M: PGameEngine) = nil
-proc defaultUpdate (M: PGameEngine; dt: float) = nil
+proc defaultDraw (M: PGameEngine) {.procvar.} = nil
+proc defaultUpdate (M: PGameEngine; dt: float) {.procvar.} = nil
 
 proc init* (gs: PGameState)  =
   gs.draw   = defaultDraw
