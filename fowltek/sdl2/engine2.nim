@@ -105,11 +105,19 @@ proc newGameEngine* (
   result.lastTick = sdl2.getTicks()
   
 
+proc defaultDraw (M: PGameEngine) = nil
+proc defaultUpdate (M: PGameEngine; dt: float) = nil
 
 proc init* (gs: PGameState)  =
-  gs.draw = proc(E: PGameEngine) = nil
-  gs.update = proc(M: PGameEngine; dt: float) = nil
+  gs.draw   = defaultDraw
+  gs.update = defaultUpdate
   gs.events = @[]
+proc newGameState* (
+    update = defaultUpdate; 
+    draw = defaultDraw;
+    events: seq[TGameStateEventCB] = @[]
+  ): PGameState =
+  PGameState(update: update, draw: draw, events: events)
 
 proc addHandler* (gs: PGameState; cb: TGameStateEventCB) {.inline.} =
   gs.events.add cb
