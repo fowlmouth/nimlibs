@@ -105,7 +105,7 @@ proc left*(some: TBounds): float {.inline.} = some.x
 when isMainModule:
   
   import fowltek/sdl2/engine, colors
-  import_all_sdl2_modules
+  import_all_sdl2_things
   import math, os, strutils
   randomize()
   
