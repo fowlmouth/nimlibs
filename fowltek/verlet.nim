@@ -40,29 +40,29 @@ freely, subject to the following restrictions:
 import basic2d, math
 
 type
-  PVertex = ref TVertex
-  TVertex = object
-    position, oldPosition, acceleration: TVector2d
+  PVertex* = ref TVertex
+  TVertex* = object
+    position*, oldPosition, acceleration: TVector2d
     parent: PBody
 
-  PPhysics = var TPhysics
-  TPhysics = object
+  PPhysics* = var TPhysics
+  TPhysics* = object
     vertices: seq[PVertex]
     edges: seq[PEdge]
     bodies: seq[PBody]
-    gravity: TVector2d
-    iterations: int
+    gravity*: TVector2d
+    iterations*: int
     when defined(UseWorldBoundaries):
       width*, height*: int
-    
+
   TCollisionInfo = object
     depth: float
     normal: TVector2d
     edge: PEdge
     vert: PVertex
   
-  PBody = ref TBody
-  TBody = object
+  PBody* = ref TBody
+  TBody* = object
     center: TVector2d
     vertices: seq[PVertex]
     edges: seq[PEdge]
@@ -75,7 +75,7 @@ type
     boundary: bool
     parent: PBody
 
-proc initPhysics (
+proc initPhysics* (
     gravity = vector2d(0,0);
     iterations = 1): TPhysics =
   TPhysics(
@@ -265,11 +265,11 @@ proc newEdge* (
   body.add result
   phys.add result
 
-proc newBody (phys: PPhysics): PBody {.discardable.} =
+proc newBody* (phys: PPhysics): PBody {.discardable.} =
   result = PBody(edges: @[], vertices: @[])
   phys.add result
 
-proc newVertex (phys: PPhysics; body: PBody; X,Y: float): PVertex {.discardable.}=
+proc newVertex* (phys: PPhysics; body: PBody; X,Y: float): PVertex {.discardable.}=
   let pos = vector2d(x, y)
   result = PVertex(
     position: pos, oldPosition: pos,
@@ -295,8 +295,8 @@ proc createBox* (phys: PPhysics; X,Y, W,H: float): PBody {.discardable.} =
   phys.newEdge(result, v1, v3, false)
   phys.newEdge(result, v2, v4, false)
   
-proc findVertex* (phys: PPhysics; coord: TVector2d): PVertex =
-  var minDist = 1_000.0
+proc findVertex* (phys: PPhysics; coord: TVector2d; minimumDistance = 1000.0): PVertex =
+  var minDist = minimumDistance
   
   for v in phys.vertices:
     let dist = (v.position - coord).sqrLen
