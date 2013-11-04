@@ -4,13 +4,13 @@ import unsigned, strutils
 export unsigned, strutils.`%`
 
 when defined(SDL_Static):
-  static: echo "SDL2 will be statically linked."
-  
-  {.passl: gorge("pkg-config --libs sdl2").}
-  {.pragma: sdl_header, header: "<SDL2/SDL.h>".}
+  #static: echo "SDL2 will be statically linked."
+  #{.passl: gorge("pkg-config --libs sdl2").}
+  #{.pragma: sdl_header, header: "<SDL2/SDL.h>".}
+  {.error: "Static linking SDL2 is disabled.".}
   
 else:
-  static: echo "SDL2 will be dynamically linked."
+  #static: echo "SDL2 will be dynamically linked."
   
   when defined(Windows):
     const libName = "SDL2.dll"
@@ -19,42 +19,42 @@ else:
   elif defined(macosx):
     const LibName = "libSDL2.so"
 
-macro sdl_struct (structName, record): stmt {.immediate.} =
-  ## when macros are available in type definitions this one will be a lot simpler..
-  let structName_s = $structName
-  
-  when defined(SDL_Static):
-    var pragma_for_t = """{.importc: "SDL_$1", sdl_header""" % 
-      structName_s
-    if record.len == 0:
-      pragma_for_t.add ", incompleteStruct"
-    pragma_for_t.add ".}"
+when false:
+  macro sdl_struct (structName, record): stmt {.immediate.} =
+    ## when macros are available in type definitions this one will be a lot simpler..
+    let structName_s = $structName
+    
+    when defined(SDL_Static):
+      var pragma_for_t = """{.importc: "SDL_$1", sdl_header""" % 
+        structName_s
+      if record.len == 0:
+        pragma_for_t.add ", incompleteStruct"
+      pragma_for_t.add ".}"
 
-  else:
-    var pragma_for_t = "{.pure.}"
-  
-  var t_type = parseExpr("type T$1* $2 = object" % [
-    structName_s, pragma_for_t] )
+    else:
+      var pragma_for_t = "{.pure.}"
+    
+    var t_type = parseExpr("type T$1* $2 = object" % [
+      structName_s, pragma_for_t] )
 
-  var recdList = newEmptyNode()
-  if not(record.len == 0):
-    recdList = newNimNode(nnkRecList) 
-    record.copyChildrenTo recdList
-    ## export each field
-    for i in 0 .. < recdList.len:
-      for ii in 0 .. < recdList[i].len - 2: # last two are type and default val
-        recdList[i][ii] = recdList[i][ii].postfix("*")
+    var recdList = newEmptyNode()
+    if not(record.len == 0):
+      recdList = newNimNode(nnkRecList) 
+      record.copyChildrenTo recdList
+      ## export each field
+      for i in 0 .. < recdList.len:
+        for ii in 0 .. < recdList[i].len - 2: # last two are type and default val
+          recdList[i][ii] = recdList[i][ii].postfix("*")
 
-  
-  t_type[0][2][2] = recdList  # type/type def/object ty/field slot
+    
+    t_type[0][2][2] = recdList  # type/type def/object ty/field slot
 
-  t_type.add parseExpr("type P$1* = ptr T$1" % structName_s)[0]
-  
-  when defined(Debug):
-    t_type.repr.echo
-  
-  return t_type
-  
+    t_type.add parseExpr("type P$1* = ptr T$1" % structName_s)[0]
+    
+    when defined(Debug):
+      t_type.repr.echo
+    
+    return t_type
 
 include fowltek/sdl2/private/keycodes
 
@@ -342,18 +342,17 @@ discard """
     driverData*: pointer
 """
 
+type 
+  TDisplayMode = object {.pure.}
+    format*: cuint
+    w*,h*,refresh_rate*: cint
+    driverData*: pointer        
+  
+  PWindow* = distinct pointer
+  PRenderer* = distinct pointer
+  PTexture* = distinct pointer
+  PCursor* = distinct pointer
 
-sdl_struct DisplayMode, tuple[
-  format: cuint,
-  w,h,refresh_rate: cint,
-  driverData: pointer        ]
-
-sdl_struct Window, tuple[]
-sdl_struct Renderer, tuple[]
-sdl_struct Texture, tuple[]
-sdl_struct Cursor, tuple[]
-
-type  
   PGLContext* = pointer
   
   SDL_Version* = object
