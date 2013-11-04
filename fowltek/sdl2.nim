@@ -309,6 +309,31 @@ type
   TPoint* = tuple[x, y: cint]
   TRect* = tuple[x, y: cint, w, h: cint]
 
+  GLattr*{.size: sizeof(cint).} = enum
+    SDL_GL_RED_SIZE,
+    SDL_GL_GREEN_SIZE,
+    SDL_GL_BLUE_SIZE,
+    SDL_GL_ALPHA_SIZE,
+    SDL_GL_BUFFER_SIZE,
+    SDL_GL_DOUBLEBUFFER,
+    SDL_GL_DEPTH_SIZE,
+    SDL_GL_STENCIL_SIZE,
+    SDL_GL_ACCUM_RED_SIZE,
+    SDL_GL_ACCUM_GREEN_SIZE,
+    SDL_GL_ACCUM_BLUE_SIZE,
+    SDL_GL_ACCUM_ALPHA_SIZE,
+    SDL_GL_STEREO,
+    SDL_GL_MULTISAMPLEBUFFERS,
+    SDL_GL_MULTISAMPLESAMPLES,
+    SDL_GL_ACCELERATED_VISUAL,
+    SDL_GL_RETAINED_BACKING,
+    SDL_GL_CONTEXT_MAJOR_VERSION,
+    SDL_GL_CONTEXT_MINOR_VERSION,
+    SDL_GL_CONTEXT_EGL,
+    SDL_GL_CONTEXT_FLAGS,
+    SDL_GL_CONTEXT_PROFILE_MASK,
+    SDL_GL_SHARE_WITH_CURRENT_CONTEXT
+
 
 discard """
   TDisplayMode* = object
@@ -827,16 +852,14 @@ proc Present*(renderer: PRenderer) {.importc: "SDL_RenderPresent".}
 {.pop.}
 
 
-{.push importc: "SDL_GL_$1".}
-proc BindTexture*(texture: PTexture; texw, texh: var cfloat): cint 
-proc UnbindTexture*(texture: PTexture)
-{.pop.}
+{.push importc: "SDL_$1".}
+proc GL_BindTexture*(texture: PTexture; texw, texh: var cfloat): cint 
+proc GL_UnbindTexture*(texture: PTexture)
 
 proc CreateRGBSurface*(flags: cint; width, height, depth: cint; 
-  Rmask, Gmask, BMask, Amask: cint): PSurface {.importc: "SDL_CreateRGBSurface".}
+  Rmask, Gmask, BMask, Amask: cint): PSurface 
 proc CreateRGBSurfaceFrom*(pixels: pointer; width, height, depth, pitch: cint;
-  Rmask, Gmask, Bmask, Amask: cint): PSurface {.
-  importc: "SDL_CreateRGBSurfaceFrom".}
+  Rmask, Gmask, Bmask, Amask: cint): PSurface 
 
 proc FreeSurface*(surface: PSurface) 
 
@@ -1083,7 +1106,41 @@ proc RemoveTimer*(id: TTimerID): bool32 {.importc: "SDL_RemoveTimer".}
 #   \sa SDL_GL_GetProcAddress()
 #   \sa SDL_GL_UnloadLibrary()
 # 
+{.push importc: "SDL_$1".}
+#extern DECLSPEC int SDLCALL SDL_GL_LoadLibrary(const char *path);
+proc GL_LoadLibrary* (path: cstring): SDL_Return {.discardable.}
+#extern DECLSPEC void *SDLCALL SDL_GL_GetProcAddress(const char *proc);
+proc GL_GetProcAddress* (procedure: cstring): pointer 
+#extern DECLSPEC void SDLCALL SDL_GL_UnloadLibrary(void);
+proc GL_UnloadLibrary* 
+#extern DECLSPEC SDL_bool SDLCALL SDL_GL_ExtensionSupported(const char
+#                                                          *extension);
+proc GL_ExtensionSupported* (extension: cstring): bool
 
+#extern DECLSPEC int SDLCALL SDL_GL_SetAttribute(SDL_GLattr attr, int value);
+proc GL_SetAttribute* (attr: GLattr; value: cint): cint
+#extern DECLSPEC int SDLCALL SDL_GL_GetAttribute(SDL_GLattr attr, int *value);
+proc GL_GetAttribute* (attr: GLattr; value: var cint): cint
+
+
+proc GL_CreateContext*(window: PWindow): PGLContext 
+  ## Create an OpenGL context for use with an OpenGL window, and make it current.
+proc GL_MakeCurrent* (window: PWindow; context: PGLContext): cint
+
+proc GL_GetCurrentWindow* : PWindow
+proc GL_GetCurrentContext*: PGLContext
+
+proc GL_GetDrawableSize* (window: PWindow; w,h: var cint)
+
+proc GL_SetSwapInterval* (interval: cint): cint
+proc GL_GetSwapInterval* : cint
+
+proc GL_SwapWindow*(window: PWindow) 
+  ## Swap the OpenGL buffers for a window, if double-buffering is supported.
+
+proc GL_DeleteContext* (context: PGLContext)
+
+{.pop.}
 
 ##SDL_keyboard.h:
 proc GetKeyboardFocus*: PWindow {.importc: "SDL_GetKeyboardFocus".}
@@ -1249,11 +1306,6 @@ proc GetError*(): cstring {.importc: "SDL_GetError".}
 proc ClearError*() {.importc: "SDL_ClearError".}
 
 
-
-proc GL_CreateContext*(window: PWindow): PGLContext {.importc: "SDL_GL_CreateContext".}
-  ## Create an OpenGL context for use with an OpenGL window, and make it current.
-proc GL_SwapWindow*(window: PWindow) {.importc: "SDL_GL_SwapWindow".}
-  ## Swap the OpenGL buffers for a window, if double-buffering is supported.
 
 
 {.pop.}
