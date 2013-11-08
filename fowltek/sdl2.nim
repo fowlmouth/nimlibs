@@ -751,7 +751,7 @@ proc GetTextureColorMod*(texture: PTexture; r, g, b: var Uint8): SDL_Return {.
   importc: "SDL_GetTextureColorMod".}
 
 proc SetTextureAlphaMod*(texture: PTexture; alpha: Uint8): SDL_Return {.
-  importc: "SDL_GetTextureAlphaMod", discardable.}
+  importc: "SDL_SetTextureAlphaMod", discardable.}
 
 proc GetTextureAlphaMod*(texture: PTexture; alpha: var Uint8): SDL_Return {.
   importc: "SDL_GetTextureAlphaMod", discardable.}
