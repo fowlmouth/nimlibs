@@ -563,13 +563,14 @@ type
     buttons*: ptr TMessageBoxButtonData
     colorScheme*: ptr TMessageBoxColorScheme #*< ::SDL_MessageBoxColorScheme, can be NULL to use system settings 
 
+  PRWops* = ptr TRWops
   TRWops* {.pure, final.} = object 
-    size*: proc (context: ptr TRWops): int64 
-    seek*: proc (context: ptr TRWops; offset: int64; whence: cint): int64 
-    read*: proc (context: ptr TRWops; destination: pointer; size, maxnum: csize): csize 
-    write*: proc (context: ptr TRWops; source: pointer; size: csize; 
+    size*: proc (context: PRWops): int64 
+    seek*: proc (context: PRWops; offset: int64; whence: cint): int64 
+    read*: proc (context: PRWops; destination: pointer; size, maxnum: csize): csize 
+    write*: proc (context: PRWops; source: pointer; size: csize; 
                   num: csize): csize 
-    close*: proc (context: ptr TRWops): cint
+    close*: proc (context: PRWops): cint
     kind*: cint          
     mem*: TMem
   TMem*{.final.} = object 
@@ -895,15 +896,15 @@ proc UnlockSurface*(surface: PSurface) {.importc: "SDL_UnlockSurface".}
 #   
 #   \return the new surface, or NULL if there was an error.
 # 
-proc LoadBMP_RW*(src: ptr TRWops; freesrc: cint): PSurface {.
+proc LoadBMP_RW*(src: PRWops; freesrc: cint): PSurface {.
   importc: "SDL_LoadBMP_RW".}
 
 
 
-proc RWFromFile*(file: cstring; mode: cstring): ptr TRWops {.importc: "SDL_RWFromFile".}
-proc RWFromFP*(fp: TFILE; autoclose: Bool32): ptr TRWops {.importc: "SDL_RWFromFP".}
-proc RWFromMem*(mem: pointer; size: cint): ptr TRWops {.importc: "SDL_RWFromMem".}
-proc RWFromConstMem*(mem: pointer; size: cint): ptr TRWops {.importc: "SDL_RWFromConstMem".}
+proc RWFromFile*(file: cstring; mode: cstring): PRWops {.importc: "SDL_RWFromFile".}
+proc RWFromFP*(fp: TFILE; autoclose: Bool32): PRWops {.importc: "SDL_RWFromFP".}
+proc RWFromMem*(mem: pointer; size: cint): PRWops {.importc: "SDL_RWFromMem".}
+proc RWFromConstMem*(mem: pointer; size: cint): PRWops {.importc: "SDL_RWFromConstMem".}
 
 #*
 #   Load a surface from a file.
@@ -911,7 +912,7 @@ proc RWFromConstMem*(mem: pointer; size: cint): ptr TRWops {.importc: "SDL_RWFro
 #   Convenience macro.
 # 
 #*
-proc SaveBMP_RW*(surface: PSurface; dst: ptr TRWops; 
+proc SaveBMP_RW*(surface: PSurface; dst: PRWops; 
                      freedst: cint): SDL_Return {.importc: "SDL_SaveBMP_RW".}
 
 proc SetSurfaceRLE*(surface: PSurface; flag: cint): cint {.
@@ -982,20 +983,20 @@ proc LowerBlitScaled*(src: PSurface; srcrect: ptr TRect; dst: PSurface;
 
 
 
-proc ReadU8*(src: ptr TRWops): Uint8 {.importc: "SDL_ReadU8".}
-proc ReadLE16*(src: ptr TRWops): Uint16 {.importc: "SDL_ReadLE16".}
-proc ReadBE16*(src: ptr TRWops): Uint16 {.importc: "SDL_ReadBE16".}
-proc ReadLE32*(src: ptr TRWops): Uint32 {.importc: "SDL_ReadLE32".}
-proc ReadBE32*(src: ptr TRWops): Uint32 {.importc: "SDL_ReadBE32".}
-proc ReadLE64*(src: ptr TRWops): Uint64 {.importc: "SDL_ReadLE64".}
-proc ReadBE64*(src: ptr TRWops): Uint64 {.importc: "SDL_ReadBE64".}
-proc WriteU8*(dst: ptr TRWops; value: Uint8): csize {.importc: "SDL_WriteU8".}
-proc WriteLE16*(dst: ptr TRWops; value: Uint16): csize {.importc: "SDL_WriteLE16".}
-proc WriteBE16*(dst: ptr TRWops; value: Uint16): csize {.importc: "SDL_WriteBE16".}
-proc WriteLE32*(dst: ptr TRWops; value: Uint32): csize {.importc: "SDL_WriteLE32".}
-proc WriteBE32*(dst: ptr TRWops; value: Uint32): csize {.importc: "SDL_WriteBE32".}
-proc WriteLE64*(dst: ptr TRWops; value: Uint64): csize {.importc: "SDL_WriteLE64".}
-proc WriteBE64*(dst: ptr TRWops; value: Uint64): csize {.importc: "SDL_WriteBE64".}
+proc ReadU8*(src: PRWops): Uint8 {.importc: "SDL_ReadU8".}
+proc ReadLE16*(src: PRWops): Uint16 {.importc: "SDL_ReadLE16".}
+proc ReadBE16*(src: PRWops): Uint16 {.importc: "SDL_ReadBE16".}
+proc ReadLE32*(src: PRWops): Uint32 {.importc: "SDL_ReadLE32".}
+proc ReadBE32*(src: PRWops): Uint32 {.importc: "SDL_ReadBE32".}
+proc ReadLE64*(src: PRWops): Uint64 {.importc: "SDL_ReadLE64".}
+proc ReadBE64*(src: PRWops): Uint64 {.importc: "SDL_ReadBE64".}
+proc WriteU8*(dst: PRWops; value: Uint8): csize {.importc: "SDL_WriteU8".}
+proc WriteLE16*(dst: PRWops; value: Uint16): csize {.importc: "SDL_WriteLE16".}
+proc WriteBE16*(dst: PRWops; value: Uint16): csize {.importc: "SDL_WriteBE16".}
+proc WriteLE32*(dst: PRWops; value: Uint32): csize {.importc: "SDL_WriteLE32".}
+proc WriteBE32*(dst: PRWops; value: Uint32): csize {.importc: "SDL_WriteBE32".}
+proc WriteLE64*(dst: PRWops; value: Uint64): csize {.importc: "SDL_WriteLE64".}
+proc WriteBE64*(dst: PRWops; value: Uint64): csize {.importc: "SDL_WriteBE64".}
 
 proc ShowMessageBox*(messageboxdata: ptr TMessageBoxData; 
   buttonid: var cint): cint {.importc: "SDL_ShowMessageBox".}
