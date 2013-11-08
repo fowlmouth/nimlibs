@@ -48,10 +48,7 @@ proc IMG_LoadTexture*(renderer: PRenderer; file: cstring): PTexture {.
 #                         freesrc: cint): ptr SDL_Texture
 #proc IMG_LoadTextureTyped_RW*(renderer: ptr SDL_Renderer; src: ptr SDL_RWops; 
 #                              freesrc: cint; type: cstring): ptr SDL_Texture
-# Invert the alpha of a surface for use with OpenGL
-#   This function is now a no-op, and only provided for backwards compatibility.
-#
-proc IMG_InvertAlpha*(on: cint): cint {.importc: "IMG_InvertAlpha".}
+
 
 discard """
 # Functions to detect a file type, given a seekable source 
