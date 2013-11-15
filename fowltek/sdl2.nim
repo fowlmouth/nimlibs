@@ -402,7 +402,7 @@ const ## WindowFlags
 
 converter toBool*(some: bool32): bool = bool(some)
 converter toBool*(some: SDL_Return): bool = some == SdlSuccess
-
+converter toCint*(some: TTextureAccess): cint = some.cint
 
 type 
   TColor* {.pure, final.} = tuple[
@@ -773,8 +773,7 @@ proc UnlockTexture*(texture: PTexture) {.importc: "SDL_UnlockTexture".}
 proc RenderTargetSupported*(renderer: PRenderer): Bool32 {.
   importc: "SDL_RenderTargetSupported".}
 
-proc SetRenderTarget*(renderer: PRenderer; texture: PTexture): SDL_Return {.
-  importc: "SDL_SetRenderTarget".}
+proc SetRenderTarget*(renderer: PRenderer; texture: PTexture): SDL_Return {.discardable.}
 #*
 # 
 proc GetRenderTarget*(renderer: PRenderer): PTexture 
@@ -1305,7 +1304,86 @@ proc SetError*(fmt: cstring) {.varargs, importc: "SDL_SetError".}
 proc GetError*(): cstring {.importc: "SDL_GetError".}
 proc ClearError*() {.importc: "SDL_ClearError".}
 
+#extern DECLSPEC const char* SDLCALL SDL_GetPixelFormatName(Uint32 format);
+proc GetPixelFormatName* (format: uint32): cstring 
+  ## Get the human readable name of a pixel format
 
+#extern DECLSPEC SDL_bool SDLCALL SDL_PixelFormatEnumToMasks(Uint32 format,
+#                                                            int *bpp,
+#                                                            Uint32 * Rmask,
+#                                                            Uint32 * Gmask,
+#                                                            Uint32 * Bmask,
+#                                                            Uint32 * Amask);
+proc PixelFormatEnumToMasks* (format: uint32; bpp: var cint;
+  Rmask, Gmask, Bmask, Amask: var uint32): bool
+  ##Convert one of the enumerated pixel formats to a bpp and RGBA masks.
+  ##Returns TRUE or FALSE if the conversion wasn't possible.
+
+
+#extern DECLSPEC Uint32 SDLCALL SDL_MasksToPixelFormatEnum(int bpp,
+#                                                          Uint32 Rmask,
+#                                                          Uint32 Gmask,
+#                                                          Uint32 Bmask,
+#                                                          Uint32 Amask);
+proc MasksToPixelFormatEnum* (bpp: cint; Rmask, Gmask, Bmask, Amask: uint32): uint32
+  ##Convert a bpp and RGBA masks to an enumerated pixel format.
+  ##The pixel format, or ::SDL_PIXELFORMAT_UNKNOWN if the conversion wasn't possible.
+
+#extern DECLSPEC SDL_PixelFormat * SDLCALL SDL_AllocFormat(Uint32 pixel_format);
+proc AllocFormat* (pixelFormat: uint32): ptr TPixelFormat
+##Create an SDL_PixelFormat structure from a pixel format enum.
+
+#extern DECLSPEC void SDLCALL SDL_FreeFormat(SDL_PixelFormat *format);
+proc FreeFormat* (format: ptr TPixelFormat)
+  ##Free an SDL_PixelFormat structure.
+
+#extern DECLSPEC SDL_Palette *SDLCALL SDL_AllocPalette(int ncolors);
+proc AllocPalette* (numColors: cint): ptr TPalette
+  ##Create a palette structure with the specified number of color entries.
+  ##Returns A new palette, or NULL if there wasn't enough memory.
+  ##Note: The palette entries are initialized to white.
+
+#extern DECLSPEC int SDLCALL SDL_SetPixelFormatPalette(SDL_PixelFormat * format,
+#                                                      SDL_Palette *palette);
+proc SetPixelFormatPalette* (format: ptr TPixelFormat; palette: ptr TPalette): cint
+  ##Set the palette for a pixel format structure.
+
+#extern DECLSPEC int SDLCALL SDL_SetPaletteColors(SDL_Palette * palette,
+#                                                 const SDL_Color * colors,
+#                                                 int firstcolor, int ncolors);
+proc SetPaletteColors* (palette: ptr TPalette; colors: ptr TColor; first, numColors: cint): SDL_Return {.discardable.}
+  ## Set a range of colors in a palette.
+#extern DECLSPEC void SDLCALL SDL_FreePalette(SDL_Palette * palette);
+proc FreePalette* (palette: ptr TPalette)
+  ##Free a palette created with SDL_AllocPalette().
+
+#extern DECLSPEC Uint32 SDLCALL SDL_MapRGB(const SDL_PixelFormat * format,
+#                                          Uint8 r, Uint8 g, Uint8 b);
+proc MapRGB* (format: ptr TPixelFormat; r,g,b: uint8): uint32
+  ##Maps an RGB triple to an opaque pixel value for a given pixel format.
+
+#extern DECLSPEC Uint32 SDLCALL SDL_MapRGBA(const SDL_PixelFormat * format,
+#                                           Uint8 r, Uint8 g, Uint8 b,
+#                                           Uint8 a);
+proc MapRGBA* (format: ptr TPixelFormat; r,g,b,a: uint8): uint32
+  ##Maps an RGBA quadruple to a pixel value for a given pixel format.
+
+#extern DECLSPEC void SDLCALL SDL_GetRGB(Uint32 pixel,
+#                                        const SDL_PixelFormat * format,
+#                                        Uint8 * r, Uint8 * g, Uint8 * b);
+proc GetRGB* (pixel: uint32; format: ptr TPixelFormat; r,g,b: var uint8)
+  ##Get the RGB components from a pixel of the specified format.
+
+#extern DECLSPEC void SDLCALL SDL_GetRGBA(Uint32 pixel,
+#                                         const SDL_PixelFormat * format,
+#                                         Uint8 * r, Uint8 * g, Uint8 * b,
+#                                         Uint8 * a);
+proc GetRGBA* (pixel: uint32; format: ptr TPixelFormat; r,g,b,a: var uint8)
+  ##Get the RGBA components from a pixel of the specified format.
+
+#extern DECLSPEC void SDLCALL SDL_CalculateGammaRamp(float gamma, Uint16 * ramp);
+proc CalculateGammaRamp* (gamma: cfloat; ramp: ptr uint16)
+  ##Calculate a 256 entry gamma ramp for a gamma value.
 
 
 {.pop.}
@@ -1350,6 +1428,8 @@ proc DestroyRenderer*(renderer: PRenderer) {.inline.} = destroy(renderer)
 proc destroy* (window: PWindow) {.inline.} = window.destroyWindow
 proc destroy* (cursor: PCursor) {.inline.} = cursor.freeCursor
 proc destroy* (surface: PSurface) {.inline.} = surface.freeSurface
+proc destroy* (format: ptr TPixelFormat) {.inline.} = format.FreeFormat
+proc destroy* (palette: ptr TPalette) {.inline.} = palette.FreePalette
 
 proc BlitSurface*(src: PSurface; srcrect: ptr TRect; dst: PSurface; 
   dstrect: ptr TRect): SDL_Return {.inline, discardable.} = UpperBlit(src, srcrect, dst, dstrect)
