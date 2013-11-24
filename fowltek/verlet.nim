@@ -36,6 +36,7 @@ freely, subject to the following restrictions:
 
 ## defines:
 ##   UseWorldBoundaries - adds width/height fields to TPhysics for global boundaries
+##   UseSDL2 - adds draw(sdl2.PRenderer, PPhysics) function for debug drawing
 
 import basic2d, math
 
@@ -305,9 +306,32 @@ proc findVertex* (phys: PPhysics; coord: TVector2d; minimumDistance = 1000.0): P
       result = v
       minDist = dist
 
-when isMainModule:
+proc move* (body: PBody; offset: TVector2d) =
+  for v in body.vertices:
+    v.position += offset
+    v.oldPosition = v.position
+
+when defined(UseSDL2) or isMainModule:
   import fowltek/sdl2/engine2
   import_all_sdl2_things
+  
+  proc draw* (R: PRenderer; phys: PPhysics) =
+    
+    R.setDrawColor 255,0,0,255
+    for edge in phys.edges:
+      R.drawLine(
+        edge.v1.position.x.cint, edge.v1.position.y.cint,
+        edge.v2.position.x.cint, edge.v2.position.y.cint
+      )
+    
+    R.setDrawColor 255,255,255,255
+    for vert in phys.vertices:
+      R.drawPoint(
+        vert.position.x.cint, vert.position.y.cint
+      )
+    
+
+when isMainModule:
   
   const
     width = 800
@@ -342,18 +366,7 @@ when isMainModule:
       world.newEdge body, v3, v1
   
   proc draw (E: PGameEngine) =
-    E.setDrawColor 255,0,0,255
-    for edge in world.edges:
-      E.drawLine(
-        edge.v1.position.x.cint, edge.v1.position.y.cint,
-        edge.v2.position.x.cint, edge.v2.position.y.cint
-      )
-    
-    E.setDrawColor 255,255,255,255
-    for vert in world.vertices:
-      E.drawPoint(
-        vert.position.x.cint, vert.position.y.cint
-      )
+    E.draw world
     
     E.stringRGBA 100,100, "Hello, Nimrods.",
       0,240,50,255

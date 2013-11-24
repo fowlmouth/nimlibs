@@ -742,7 +742,7 @@ proc CreateTexture*(renderer: PRenderer; surface: PSurface): PTexture {.
   inline.} = renderer.createTextureFromSurface(surface) 
 
 proc QueryTexture*(texture: PTexture; format: ptr Uint32; 
-  access, w, h: ptr cint): SDL_Return {.importc: "SDL_QueryTexture".}
+  access, w, h: ptr cint): SDL_Return {.discardable.}
 
 proc SetTextureColorMod*(texture: PTexture; r, g, b: Uint8): SDL_Return {.
   importc: "SDL_SetTextureColorMod".}

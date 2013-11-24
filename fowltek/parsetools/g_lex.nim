@@ -93,9 +93,13 @@ proc hasCharacters*(L: var TLexer; n: int): bool =
 proc `+=`(some: var TLexPosition, by: int) =
   inc some.index, by
   inc some.col, by
+proc `-=`(some: var TLexPosition; by: int) =
+  dec some.index, by
+  dec some.col, by
 
 proc inc*(P: var TLexPosition; by = 1) =  P += by
 proc inc*(L: var TLexer, by: int = 1) =  L.pos += by
+proc dec*(L: var TLexer; by = 1) = L.pos -= by
 
 proc zomg*[A](some: A): A =
   echo($some)

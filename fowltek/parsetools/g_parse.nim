@@ -28,6 +28,10 @@ proc currentTok*[A] (P: var T_Parser[A]): var TToken = P.tokens[P.tkIndex]
 proc expectTok*[A]  (P: var T_Parser[A]; kinds: varargs[TTokenType]) {.inline.}=
   if P.currentTok.kind notin kinds:
     parsingError "Expected one of "&repr(kinds)&", got "&($P.currentTok())
+proc expectStrTok*[A] (P: var T_Parser[A]; kinds: varargs[TTokenType]; strings: varargs[string]) {.inline.} =
+  P.expectTok kinds
+  if P.currentTok.sval notin strings:
+    parsingError "Expected one of "& repr(kinds) &", got "& $P.currentTok
 
 proc consumeTok*[A] (P: var T_Parser[A]; kinds: varargs[TTokenType]): var TToken {.
   discardable.} =
