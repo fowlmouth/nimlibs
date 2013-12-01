@@ -88,7 +88,7 @@ proc currentChar*(L: var TLexer): char = L.input[L.pos.index]
 proc nextChar*(L: var TLexer, n: int = 1): char = L.input[L.pos.index + n]
 proc nextChars*(L: var TLexer, n: int): string = L.input[L.pos.index .. L.pos.index+n-1]
 proc hasCharacters*(L: var TLexer; n: int): bool =
-  result = (L.pos.index + n < L.input.high)
+  result = (L.pos.index + n < L.input.len)
 
 proc `+=`(some: var TLexPosition, by: int) =
   inc some.index, by

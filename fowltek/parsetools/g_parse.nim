@@ -24,6 +24,7 @@ template ParsingError_lt*(msg: string): stmt =
 template ParsingError*(msg: string): stmt = parsingError_lt(msg&" at "& $P.currentTok().pos)
 
 proc currentTok*[A] (P: var T_Parser[A]): var TToken = P.tokens[P.tkIndex]
+proc nextTok*[A] (P: var T_Parser[A]; offset = 1): var TToken = P.tokens[P.tkIndex + offset]
 
 proc expectTok*[A]  (P: var T_Parser[A]; kinds: varargs[TTokenType]) {.inline.}=
   if P.currentTok.kind notin kinds:
