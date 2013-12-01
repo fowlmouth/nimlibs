@@ -95,7 +95,7 @@ type
     windowID*: uint32
     event*: TWindowEventID
     pad1,pad2,pad3: uint8
-    data1*, data*: cint
+    data1*, data2*: cint
   TKeyEvent* = object
     timestamp*: uint32
     windowID*: uint32

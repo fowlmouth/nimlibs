@@ -128,7 +128,7 @@ proc closeOnQuitEvent* (M: PGameEngine; evt: var sdl2.TEvent): bool {.procvar.}=
 proc closeOnQuitEventOrKey* (key: cint): TGameStateEventCB =
   return proc(M: PGameEngine; evt: var sdl2.TEvent): bool =
     result = (evt.kind == QuitEvent) or 
-      (evt.kind == KeyDown and evt.EvKeyboard.keysym.sym == key)
+      (evt.kind == KeyDown and evt.key.keysym.sym == key)
     if result: M.close
 
 proc keyEvent* (
@@ -138,5 +138,5 @@ proc keyEvent* (
   assert evtKind in {KeyDown, KeyUP}
   return proc(M: PGameEngine; evt: var sdl2.TEvent): bool =
     result = evt.kind == evtKind and 
-      evt.EvKeyboard.keysym.sym == key
+      evt.key.keysym.sym == key
     if result: action(M)
