@@ -19,53 +19,12 @@ else:
   elif defined(macosx):
     const LibName = "libSDL2.so"
 
-when false:
-  macro sdl_struct (structName, record): stmt {.immediate.} =
-    ## when macros are available in type definitions this one will be a lot simpler..
-    let structName_s = $structName
-    
-    when defined(SDL_Static):
-      var pragma_for_t = """{.importc: "SDL_$1", sdl_header""" % 
-        structName_s
-      if record.len == 0:
-        pragma_for_t.add ", incompleteStruct"
-      pragma_for_t.add ".}"
-
-    else:
-      var pragma_for_t = "{.pure.}"
-    
-    var t_type = parseExpr("type T$1* $2 = object" % [
-      structName_s, pragma_for_t] )
-
-    var recdList = newEmptyNode()
-    if not(record.len == 0):
-      recdList = newNimNode(nnkRecList) 
-      record.copyChildrenTo recdList
-      ## export each field
-      for i in 0 .. < recdList.len:
-        for ii in 0 .. < recdList[i].len - 2: # last two are type and default val
-          recdList[i][ii] = recdList[i][ii].postfix("*")
-
-    
-    t_type[0][2][2] = recdList  # type/type def/object ty/field slot
-
-    t_type.add parseExpr("type P$1* = ptr T$1" % structName_s)[0]
-    
-    when defined(Debug):
-      t_type.repr.echo
-    
-    return t_type
-
 include fowltek/sdl2/private/keycodes
 
 const
   SDL_TEXTEDITINGEVENT_TEXT_SIZE* = 32
   SDL_TEXTINPUTEVENT_TEXT_SIZE* = 32
 type
-  TEvent* {.pure, final.} = object
-    kind*: TEventType
-    pad: array[0 .. <(56 - 4), byte]
-
 
   TWindowEventID* {.size: sizeof(byte).} = enum
     WindowEvent_None = 0, WindowEvent_Shown, WindowEvent_Hidden, WindowEvent_Exposed,
@@ -74,220 +33,164 @@ type
     WindowEvent_FocusGained, WindowEvent_FocusLost, WindowEvent_Close
   
   TEventType* {.size: sizeof(cint).} = enum
-    QuitEvent = 0x100, WindowEvent = 0x200, SysWMEvent,
-    KeyDown = 0x300, KeyUp, TextEditing, TextInput,
+    QuitEvent = 0x100, AppTerminating, AppLowMemory, AppWillEnterBackground, AppDidEnterBackground, AppWillEnterForeground, AppDidEnterForeground,
+    WindowEvent = 0x200, SysWMEvent,
+    KeyDown = 0x300, KeyUp, TextEditing, TextInput, 
     MouseMotion = 0x400, MouseButtonDown, MouseButtonUp, MouseWheel,
-    InputMotion = 0x500, InputButtonDown, InputButtonUp, InputWheel, InputProximityIn, InputProximityOut,
-    JoyAxisMotion=0x600, JoyBallMotion, JoyHatMotion, joyButtonDown, joyButtonUp, 
-    fingerDown = 0x700, fingerUp, fingerMotion, touchButtonDown, touchButtonUp,
-    dollarGesture = 0x800, DollarRecord, MultiGesture,
-    clipboardUpdate = 0x900,
-    dropFile = 0x1000,
+    JoyAxisMotion = 0x600, JoyBallMotion, JoyHatMotion, JoyButtonDown, JoyButtonUp, JoyDeviceAdded, JoyDeviceRemoved,
+    ControllerAxisMotion = 0x650, ControllerButtonDown, ControllerButtonUp, ControllerDeviceAdded, ControllerDeviceRemoved, ControllerDeviceRemapped,
+    FingerDown = 0x700, FingerUp, FingerMotion,
+    DollarGesture = 0x800, DollarRecord, MultiGesture,
+    ClipboardUpdate = 0x900,
+    DropFile = 0x1000,
     UserEvent = 0x8000, UserEvent1, UserEvent2, UserEvent3, UserEvent4, UserEvent5
 
-  PWindowEvent* = ptr TWindowEvent 
-  TWindowEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_WINDOWEVENT 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The associated window 
-    event*: Uint8           #*< ::SDL_WindowEventID 
-    padding1*: Uint8
-    padding2*: Uint8
-    padding3*: Uint8
-    data1*: cint            #*< event dependent data 
-    data2*: cint            #*< event dependent data 
   
-  PKeyboardEvent* = ptr TKeyboardEvent
-  TKeyboardEvent* {.pure, final.} = object 
-    kind*: TEventType           #*< ::SDL_KEYDOWN or ::SDL_KEYUP 
-    timestamp*: cint
-    windowID*: cint       #*< The window with keyboard focus, if any 
-    state*: Uint8           #*< ::SDL_PRESSED or ::SDL_RELEASED 
-    repeat*: Uint8          #*< Non-zero if this is a key repeat 
-    padding: array[0.. <2, byte]
-    keysym*: TKeysym     #*< The key that was pressed or released 
-  
-  PTextEditingEvent* = ptr TTextEditingEvent 
-  TTextEditingEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_TEXTEDITING 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The window with keyboard focus, if any 
-    text*: array[0..SDL_TEXTEDITINGEVENT_TEXT_SIZE - 1, char] #*< The editing text 
-    start*: cint            #*< The start cursor of selected editing text 
-    length*: cint           #*< The length of selected editing text 
-  
-  PTextInputEvent* = ptr TTextInputEvent 
-  TTextInputEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_TEXTINPUT 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The window with keyboard focus, if any 
-    text*: array[0.. <SDL_TEXTINPUTEVENT_TEXT_SIZE, char] #*< The input text 
-  
-  PMouseMotionEvent* = ptr TMouseMotionEvent
-  TMouseMotionEvent* {.pure, final.} = object 
-    kind*: cint           #*< ::SDL_MOUSEMOTION
+  TEvent* = object
+    case kind*: TEventType
+    of WindowEvent:
+      window*: TWindowEvent
+    of KeyDown,KeyUp:
+      key*: TKeyEvent
+    of TextEditing:
+      edit*: TTextEditingEvent
+    of TextInput:
+      text*: TTextInputEvent
+    of MouseMotion:
+      motion*: TMouseMotionEvent
+    of MouseButtonDown,MouseButtonUp:
+      button*: TMouseButtonEvent
+    of MouseWheel:
+      wheel*: TMouseWheelEvent
+    of JoyAxisMotion:
+      jaxis*: TJoyAxisEvent
+    of JoyBallMotion:
+      jball*: TJoyBallEvent
+    of JoyHatMotion:
+      jhat*: TJoyHatEvent
+    of JoyButtonDown,JoyButtonUp:
+      jbutton*: TJoyButtonEvent
+    of JoyDeviceAdded, JoyDeviceRemoved:
+      jdevice*: TJoyDeviceEvent
+    of ControllerAxisMotion:
+      caxis*: TControllerAxisEvent
+    of ControllerButtonDown, ControllerButtonUp:
+      cbutton*: TControllerButtonEvent
+    of ControllerDeviceAdded, ControllerDeviceRemoved:
+      cdevice*: TControllerDeviceEvent
+    of FingerMotion,FingerDown,FingerUp:
+      tfinger*: TTouchFingerEvent
+    of MultiGesture:
+      mgesture*: TMultiGestureEvent
+    of DollarGesture:
+      dgesture*: TDollarGestureEvent
+    of DropFile: 
+      drop*: TDropEvent
+    of UserEvent .. UserEvent5:
+      user*: TUserEvent
+    else:
+      timestamp*: uint32
+  TWindowEvent* = object
     timestamp*: uint32
-    windowID*: uint32       #*< The window with mouse focus, if any
-    which*: uint32 
-    state*: uint32           #*< The current button state 
-    x*: int32                #*< X coordinate, relative to window 
-    y*: int32                #*< Y coordinate, relative to window 
-    xrel*: int32             #*< The relative motion in the X direction 
-    yrel*: int32             #*< The relative motion in the Y direction 
-  
-  PMouseButtonEvent* = ptr TMouseButtonEvent 
-  TMouseButtonEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_MOUSEBUTTONDOWN or ::SDL_MOUSEBUTTONUP 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The window with mouse focus, if any
+    windowID*: uint32
+    event*: TWindowEventID
+    pad1,pad2,pad3: uint8
+    data1*, data*: cint
+  TKeyEvent* = object
+    timestamp*: uint32
+    windowID*: uint32
+    state*: uint8
+    repeat*: bool
+    pad1,pad2: byte
+    keysym*: TKeySym
+  TTextEditingEvent* = object
+    timestamp*: uint32
+    windowID*: uint32
+    text*: array[32, char]
+    start*,length*: int32
+  TTextInputEvent* = object
+    timestamp*: uint32
+    windowID*: uint32
+    text*: array[32,char]
+  TMouseMotionEvent* =  object
+    timestamp*,windowID*: uint32
     which*: uint32
-    button*: Uint8          #*< The mouse button index 
-    state*: Uint8           #*< ::SDL_PRESSED or ::SDL_RELEASED 
-    padding1*: Uint8
-    padding2*: Uint8
-    x*: cint                #*< X coordinate, relative to window 
-    y*: cint                #*< Y coordinate, relative to window 
+    state*: uint32
+    x*,y*, xrel*,yrel*: int32
+  TMouseButtonEvent* = object
+    timestamp*,windowID*: uint32
+    which*: uint32
+    button*: uint8
+    state*: uint8
+    pad1,pad2: uint8
+    x*,y*: cint
+  TMouseWheelEvent* = object
+    timestamp*,windowID*: uint32
+    which*: uint32
+    x*,y*: cint
+  TJoyAxisEvent* = object
+    timestamp*: uint32
+    which*: uint8
+    axis*: uint8
+    pad1,pad2: uint8
+    value*: cint
+  TJoyBallEvent* = object
+    timestamp*: uint32
+    which*,ball*, pad1,pad2: uint8
+    xrel*,yrel*: int32
+  TJoyHatEvent* = object
+    timestamp*: uint32
+    which*: int32
+    hat*,value*: uint8
+  TJoyButtonEvent* = object
+    timestamp*: uint32
+    which*: int32
+    button*,state*: uint8
+  TJoyDeviceEvent* = object
+    timestamp*: uint32
+    which*: int32
+  TControllerAxisEvent* = object
+    timestamp*: uint32
+    which*: int32
+    axis*, pad1,pad2,pad3: uint8
+    value*: int16
+  TControllerButtonEvent* = object
+    timestamp*: uint32
+    which*: int32
+    button*,state*: uint8
+  TControllerDeviceEvent* = object
+    timestamp*: uint32
+    which*: int32
   
-  PMouseWheelEvent* = ptr TMouseWheelEvent 
-  TMouseWheelEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_MOUSEWHEEL 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The window with mouse focus, if any 
-    x*: cint                #*< The amount scrolled horizontally 
-    y*: cint                #*< The amount scrolled vertically 
+  TTouchID = int64
+  TFingerID = int64
   
-  PJoyAxisEvent* = ptr TJoyAxisEvent
-  TJoyAxisEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_JOYAXISMOTION 
-    timestamp*: Uint32
-    which*: Uint8           #*< The joystick device index 
-    axis*: Uint8            #*< The joystick axis index 
-    padding1*: Uint8
-    padding2*: Uint8
-    value*: cint            #*< The axis value (range: -32768 to 32767) 
+  TTouchFingerEvent* = object
+    timestamp*: uint32
+    touchID*: TTouchID
+    fingerID*: TFingerID
+    x*,y*,dx*,dy*,pressure*: cfloat
+  TMultiGestureEvent* = object
+    timestamp*: uint32
+    touchID*: TTouchID
+    dTheta*,dDist*,x*,y*: cfloat
+    numFingers*: uint16
   
-  PJoyBallEvent* = ptr TJoyBallEvent
-  TJoyBallEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_JOYBALLMOTION 
-    timestamp*: Uint32
-    which*: Uint8           #*< The joystick device index 
-    ball*: Uint8            #*< The joystick trackball index 
-    padding1*: Uint8
-    padding2*: Uint8
-    xrel*: cint             #*< The relative motion in the X direction 
-    yrel*: cint             #*< The relative motion in the Y direction 
-  
-  PJoyHatEvent* = TJoyHatEvent 
-  TJoyHatEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_JOYHATMOTION 
-    timestamp*: Uint32
-    which*: Uint8           #*< The joystick device index 
-    hat*: Uint8             #*< The joystick hat index 
-    value*: Uint8 #*< The hat position value. \
-                  #                            \sa ::SDL_HAT_LEFTUP ::SDL_HAT_UP ::SDL_HAT_RIGHTUP
-                  #                            \sa ::SDL_HAT_LEFT ::SDL_HAT_CENTERED ::SDL_HAT_RIGHT
-                  #                            \sa ::SDL_HAT_LEFTDOWN ::SDL_HAT_DOWN ::SDL_HAT_RIGHTDOWN
-                  #                            
-                  #                            Note that zero means the POV is centered.
-                  #                         
-    padding1*: Uint8
-  
-  PJoyButtonEvent* = ptr TJoyButtonEvent 
-  TJoyButtonEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_JOYBUTTONDOWN or ::SDL_JOYBUTTONUP 
-    timestamp*: Uint32
-    which*: Uint8           #*< The joystick device index 
-    button*: Uint8          #*< The joystick button index 
-    state*: Uint8           #*< ::SDL_PRESSED or ::SDL_RELEASED 
-    padding1*: Uint8
+  TGestureID = int64
+  TDollarGestureEvent* = object 
+    timestamp*: uint32
+    touchID*: TTouchID
+    gestureID*: TGestureID
+    numFingers*: uint32
+    error*, x*, y*: float
+  TDropEvent* = object
+    timestamp*: uint32
+    file*: cstring
+  TUserEvent* = object
+    timestamp*,windowID*: uint32
+    code*: int32
+    data1*,data2*: pointer
 
-  
-  TTouchID* = int64
-  TFingerID* = int64
-  TGestureID* = int64
-
-  PTouchFingerEvent* = ptr TTouchFingerEvent
-  TTouchFingerEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_FINGERMOTION OR  SDL_FINGERDOWN OR SDL_FINGERUP
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The window with mouse focus, if any 
-    touchId*: TTouchID   #*< The touch device id 
-    fingerId*: TFingerID
-    state*: Uint8           #*< The current button state 
-    padding1*: Uint8
-    padding2*: Uint8
-    padding3*: Uint8
-    x*: Uint16
-    y*: Uint16
-    dx*: int16
-    dy*: int16
-    pressure*: Uint16
-
-  PTouchButtonEvent* = ptr TTouchButtonEvent
-  TTouchButtonEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_TOUCHBUTTONUP OR SDL_TOUCHBUTTONDOWN 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The window with mouse focus, if any 
-    touchId*: TTouchID   #*< The touch device index 
-    state*: Uint8           #*< The current button state 
-    button*: Uint8          #*< The button changing state 
-    padding1*: Uint8
-    padding2*: Uint8
-
-  PMultiGestureEvent* = ptr TMultiGestureEvent
-  TMultiGestureEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_MULTIGESTURE 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The window with mouse focus, if any 
-    touchId*: TTouchID   #*< The touch device index 
-    dTheta*: cfloat
-    dDist*: cfloat
-    x*: cfloat              # currently 0...1. Change to screen coords? 
-    y*: cfloat
-    numFingers*: Uint16
-    padding*: Uint16
-    
-  PDollarGestureEvent* = TDollarGestureEvent
-  TDollarGestureEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_DOLLARGESTURE 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The window with mouse focus, if any 
-    touchId*: TTouchID   #*< The touch device index 
-    gestureId*: TGestureID
-    numFingers*: Uint32
-    error*: cfloat #
-                   #    //TODO: Enable to give location?
-                   #    float x;  //currently 0...1. Change to screen coords?
-                   #    float y;  
-                   #  
-  PDropEvent* = ptr TDropEvent
-  TDropEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_DROPFILE 
-    timestamp*: Uint32
-    file*: cstring          #*< The file name, which should be freed with SDL_free() 
-  
-  PQuitEvent* = ptr TQuitEvent
-  TQuitEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_QUIT 
-    timestamp*: Uint32
-
-  PUserEvent* = TUserEvent
-  TUserEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_USEREVENT through ::SDL_NUMEVENTS-1 
-    timestamp*: Uint32
-    windowID*: Uint32       #*< The associated window if any 
-    code*: cint             #*< User defined event code 
-    data1*: pointer         #*< User defined data pointer 
-    data2*: pointer         #*< User defined data pointer 
-  
-  PSysWMmsg*  = ptr object{.pure, final.} 
-  
-  PSysWMEvent* = ptr TSysWMEvent
-  TSysWMEvent* {.pure, final.} = object 
-    kind*: Uint32           #*< ::SDL_SYSWMEVENT 
-    timestamp*: Uint32
-    msg*: PSysWMmsg  #*< driver dependent data, defined in SDL_syswm.h 
-  
   TEventaction* {.size: sizeof(cint).} = enum 
     SDL_ADDEVENT, SDL_PEEKEVENT, SDL_GETEVENT
   TEventFilter* = proc (userdata: pointer; event: ptr TEvent): Bool32 {.cdecl.}
@@ -494,36 +397,38 @@ template SDL_WINDOWPOS_CENTERED_DISPLAY*(X: cint): expr = (SDL_WINDOWPOS_CENTERE
 const SDL_WINDOWPOS_CENTERED* = SDL_WINDOWPOS_CENTERED_DISPLAY(0)
 template SDL_WINDOWPOS_ISCENTERED*(X): expr = (((X) and 0xFFFF0000) == SDL_WINDOWPOS_CENTERED_MASK)
 
+when false:
+  template EvConv(name, ptype: expr; valid: set[TEventType]): stmt {.immediate.}=
+    proc `name`* (event: var TEvent): ptype =
+      assert event.kind in valid
+      result = cast[ptype](addr event)
 
-template EvConv(name, ptype: expr; valid: set[TEventType]): stmt {.immediate.}=
-  proc `name`* (event: var TEvent): ptype =
-    assert event.kind in valid
-    result = cast[ptype](addr event)
+  EvConv(EvWindow, PWindowEvent, {WindowEvent})
+  EvConv(EvKeyboard, PKeyboardEvent, {KeyDown, KeyUP})
+  EvConv(EvTextEditing, PTextEditingEvent, {TextEditing})
+  EvConv(EvTextInput, PTextInputEvent, {TextInput})
 
-EvConv(EvWindow, PWindowEvent, {WindowEvent})
-EvConv(EvKeyboard, PKeyboardEvent, {KeyDown, KeyUP})
-EvConv(EvTextEditing, PTextEditingEvent, {TextEditing})
-EvConv(EvTextInput, PTextInputEvent, {TextInput})
+  EvConv(EvMouseMotion, PMouseMotionEvent, {MouseMotion})
+  EvConv(EvMouseButton, PMouseButtonEvent, {MouseButtonDown, MouseButtonUp})
+  EvConv(EvMouseWheel, PMouseWheelEvent, {MouseWheel})
 
-EvConv(EvMouseMotion, PMouseMotionEvent, {MouseMotion})
-EvConv(EvMouseButton, PMouseButtonEvent, {MouseButtonDown, MouseButtonUp})
-EvConv(EvMouseWheel, PMouseWheelEvent, {MouseWheel})
+  EvConv(EvJoyAxis, PJoyAxisEvent, {JoyAxisMotion})
+  EvConv(EvJoyBall, PJoyBallEvent, {JoyBallMotion})
+  EvConv(EvJoyHat, PJoyHatEvent, {JoyHatMotion})
+  EvConv(EvJoyButton, PJoyButtonEvent, {JoyButtonDown, JoyButtonUp})
 
-EvConv(EvJoyAxis, PJoyAxisEvent, {JoyAxisMotion})
-EvConv(EvJoyBall, PJoyBallEvent, {JoyBallMotion})
-EvConv(EvJoyHat, PJoyHatEvent, {JoyHatMotion})
-EvConv(EvJoyButton, PJoyButtonEvent, {JoyButtonDown, JoyButtonUp})
+  EvConv(EvTouchFinger, PTouchFingerEvent, {FingerMotion, FingerDown, FingerUp})
+  EvConv(EvTouchButton, PTouchButtonEvent, {TouchButtonUP, TouchButtonDown})
+  EvConv(EvMultiGesture, PMultiGestureEvent, {MultiGesture})
+  EvConv(EvDollarGesture, PDollarGestureEvent, {DollarGesture})
 
-EvConv(EvTouchFinger, PTouchFingerEvent, {FingerMotion, FingerDown, FingerUp})
-EvConv(EvTouchButton, PTouchButtonEvent, {TouchButtonUP, TouchButtonDown})
-EvConv(EvMultiGesture, PMultiGestureEvent, {MultiGesture})
-EvConv(EvDollarGesture, PDollarGestureEvent, {DollarGesture})
+  EvConv(EvDropFile, PDropEvent, {DropFile})
+  EvConv(EvQuit, PQuitEvent, {QuitEvent})
 
-EvConv(EvDropFile, PDropEvent, {DropFile})
-EvConv(EvQuit, PQuitEvent, {QuitEvent})
+  EvConv(EvUser, PUserEvent, {UserEvent, UserEvent1, UserEvent2, UserEvent3, UserEvent4, UserEvent5})
+  EvConv(EvSysWM, PSysWMEvent, {SysWMEvent})
 
-EvConv(EvUser, PUserEvent, {UserEvent, UserEvent1, UserEvent2, UserEvent3, UserEvent4, UserEvent5})
-EvConv(EvSysWM, PSysWMEvent, {SysWMEvent})
+
 
 
 const ## SDL_MessageBox flags. If supported will display warning icon, etc.
