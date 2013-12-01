@@ -10,14 +10,12 @@ when defined(SDL_Static):
   {.error: "Static linking SDL2 is disabled.".}
   
 else:
-  #static: echo "SDL2 will be dynamically linked."
-  
   when defined(Windows):
     const libName = "SDL2.dll"
   elif defined(Linux):
     const LibName = "libSDL2.so"
   elif defined(macosx):
-    const LibName = "libSDL2.so"
+    const LibName = "libSDL2.dylib"
 
 include fowltek/sdl2/private/keycodes
 
@@ -106,12 +104,12 @@ type
   TTextEditingEvent* = object
     timestamp*: uint32
     windowID*: uint32
-    text*: array[32, char]
+    text*: array[SDL_TEXTEDITINGEVENT_TEXT_SIZE, char]
     start*,length*: int32
   TTextInputEvent* = object
     timestamp*: uint32
     windowID*: uint32
-    text*: array[32,char]
+    text*: array[SDL_TEXTINPUTEVENT_TEXT_SIZE,char]
   TMouseMotionEvent* =  object
     timestamp*,windowID*: uint32
     which*: uint32
