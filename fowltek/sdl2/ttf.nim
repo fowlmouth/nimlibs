@@ -1,6 +1,7 @@
-
 when defined(Linux):
   const LibName = "libSDL2_ttf.so"
+elif defined(macosx):
+  const LibName = "libSDL2_ttf.dylib"
 
 import fowltek/sdl2
 
