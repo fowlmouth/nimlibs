@@ -2,6 +2,8 @@ import fowltek/sdl2
 
 when defined(Linux):
   const LibName = "libSDL2_image.so"
+elif defined(macosx):
+  const LibName = "libSDL2_image.dylib"
 else:
   {.fatal: "Please fill out the library name for your platform at the top of fowltek/sdl2/image.nim".}
 
