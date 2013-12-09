@@ -236,25 +236,18 @@ type
     SDL_GL_SHARE_WITH_CURRENT_CONTEXT
 
 
-discard """
-  TDisplayMode* = object
-    format*: cint
-    w*, h*, refresh_rate*: cint
-    driverData*: pointer
-"""
-
 type 
-  TDisplayMode = object {.pure.}
+  TDisplayMode* = object 
     format*: cuint
     w*,h*,refresh_rate*: cint
     driverData*: pointer        
   
-  PWindow* = distinct pointer
-  PRenderer* = distinct pointer
-  PTexture* = distinct pointer
-  PCursor* = distinct pointer
+  PWindow* = ptr object
+  PRenderer* = ptr object
+  PTexture* = ptr object
+  PCursor* = ptr object
 
-  PGLContext* = pointer
+  PGLContext* = ptr object
   
   SDL_Version* = object
     major*, minor*, patch*: uint8
