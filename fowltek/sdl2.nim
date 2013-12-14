@@ -45,146 +45,150 @@ type
 
   
   TEvent* = object
-    case kind*: TEventType
-    of WindowEvent:
-      window*: TWindowEvent
-    of KeyDown,KeyUp:
-      key*: TKeyEvent
-    of TextEditing:
-      edit*: TTextEditingEvent
-    of TextInput:
-      text*: TTextInputEvent
-    of MouseMotion:
-      motion*: TMouseMotionEvent
-    of MouseButtonDown,MouseButtonUp:
-      button*: TMouseButtonEvent
-    of MouseWheel:
-      wheel*: TMouseWheelEvent
-    of JoyAxisMotion:
-      jaxis*: TJoyAxisEvent
-    of JoyBallMotion:
-      jball*: TJoyBallEvent
-    of JoyHatMotion:
-      jhat*: TJoyHatEvent
-    of JoyButtonDown,JoyButtonUp:
-      jbutton*: TJoyButtonEvent
-    of JoyDeviceAdded, JoyDeviceRemoved:
-      jdevice*: TJoyDeviceEvent
-    of ControllerAxisMotion:
-      caxis*: TControllerAxisEvent
-    of ControllerButtonDown, ControllerButtonUp:
-      cbutton*: TControllerButtonEvent
-    of ControllerDeviceAdded, ControllerDeviceRemoved:
-      cdevice*: TControllerDeviceEvent
-    of FingerMotion,FingerDown,FingerUp:
-      tfinger*: TTouchFingerEvent
-    of MultiGesture:
-      mgesture*: TMultiGestureEvent
-    of DollarGesture:
-      dgesture*: TDollarGestureEvent
-    of DropFile: 
-      drop*: TDropEvent
-    of UserEvent .. UserEvent5:
-      user*: TUserEvent
-    else:
-      timestamp*: uint32
+    kind*: TEventType
+    padding: array[56-sizeof(TEventType), byte]
+  
+  PQuitEvent* = ptr TQuitEvent
+  TQuitEvent* = object
+    kind*: TEventType
+    timestamp*: uint32
+  PWindowEvent* = ptr TWindowEvent
   TWindowEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     windowID*: uint32
     event*: TWindowEventID
     pad1,pad2,pad3: uint8
     data1*, data2*: cint
-  TKeyEvent* = object
+  PKeyboardEvent* = ptr TKeyboardEvent
+  TKeyboardEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     windowID*: uint32
     state*: uint8
     repeat*: bool
     pad1,pad2: byte
     keysym*: TKeySym
+  PTextEditingEvent* = ptr TTextEditingEvent
   TTextEditingEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     windowID*: uint32
     text*: array[SDL_TEXTEDITINGEVENT_TEXT_SIZE, char]
     start*,length*: int32
+  PTextInputEvent* = ptr TTextInputEvent
   TTextInputEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     windowID*: uint32
     text*: array[SDL_TEXTINPUTEVENT_TEXT_SIZE,char]
+  PMouseMotionEvent* = ptr TMouseMotionEvent
   TMouseMotionEvent* =  object
+    kind*: TEventType
     timestamp*,windowID*: uint32
     which*: uint32
     state*: uint32
     x*,y*, xrel*,yrel*: int32
+  PMouseButtonEvent* = ptr TMouseButtonEvent
   TMouseButtonEvent* = object
+    kind*: TEventType
     timestamp*,windowID*: uint32
     which*: uint32
     button*: uint8
     state*: uint8
     pad1,pad2: uint8
     x*,y*: cint
+  PMouseWheelEvent* = ptr TMouseWheelEvent
   TMouseWheelEvent* = object
+    kind*: TEventType
     timestamp*,windowID*: uint32
     which*: uint32
     x*,y*: cint
+  PJoyAxisEvent* = ptr TJoyAxisEvent
   TJoyAxisEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     which*: uint8
     axis*: uint8
     pad1,pad2: uint8
     value*: cint
+  PJoyBallEvent* = ptr TJoyBallEvent
   TJoyBallEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     which*,ball*, pad1,pad2: uint8
     xrel*,yrel*: int32
+  PJoyHatEvent* = ptr TJoyHatEvent
   TJoyHatEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     which*: int32
     hat*,value*: uint8
+  PJoyButtonEvent* = ptr TJoyButtonEvent
   TJoyButtonEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     which*: int32
     button*,state*: uint8
+  PJoyDeviceEvent* = ptr TJoyDeviceEvent
   TJoyDeviceEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     which*: int32
+  PControllerAxisEvent* = ptr TControllerAxisEvent
   TControllerAxisEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     which*: int32
     axis*, pad1,pad2,pad3: uint8
     value*: int16
+  PControllerButtonEvent* = ptr TControllerButtonEvent
   TControllerButtonEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     which*: int32
     button*,state*: uint8
+  PControllerDeviceEvent* = ptr TControllerDeviceEvent
   TControllerDeviceEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     which*: int32
   
   TTouchID = int64
   TFingerID = int64
   
+  PTouchFingerEvent* = ptr TTouchFingerEvent
   TTouchFingerEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     touchID*: TTouchID
     fingerID*: TFingerID
     x*,y*,dx*,dy*,pressure*: cfloat
+  PMultiGestureEvent* = ptr TMultiGestureEvent
   TMultiGestureEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     touchID*: TTouchID
     dTheta*,dDist*,x*,y*: cfloat
     numFingers*: uint16
   
   TGestureID = int64
+  PDollarGestureEvent* = ptr TDollarGestureEvent
   TDollarGestureEvent* = object 
+    kind*: TEventType
     timestamp*: uint32
     touchID*: TTouchID
     gestureID*: TGestureID
     numFingers*: uint32
     error*, x*, y*: float
+  PDropEvent* = ptr TDropEvent
   TDropEvent* = object
+    kind*: TEventType
     timestamp*: uint32
     file*: cstring
+  PUserEvent* = ptr TUserEvent
   TUserEvent* = object
+    kind*: TEventType
     timestamp*,windowID*: uint32
     code*: int32
     data1*,data2*: pointer
@@ -388,39 +392,43 @@ template SDL_WINDOWPOS_CENTERED_DISPLAY*(X: cint): expr = (SDL_WINDOWPOS_CENTERE
 const SDL_WINDOWPOS_CENTERED* = SDL_WINDOWPOS_CENTERED_DISPLAY(0)
 template SDL_WINDOWPOS_ISCENTERED*(X): expr = (((X) and 0xFFFF0000) == SDL_WINDOWPOS_CENTERED_MASK)
 
-when false:
-  template EvConv(name, ptype: expr; valid: set[TEventType]): stmt {.immediate.}=
-    proc `name`* (event: var TEvent): ptype =
-      assert event.kind in valid
-      result = cast[ptype](addr event)
 
-  EvConv(EvWindow, PWindowEvent, {WindowEvent})
-  EvConv(EvKeyboard, PKeyboardEvent, {KeyDown, KeyUP})
-  EvConv(EvTextEditing, PTextEditingEvent, {TextEditing})
-  EvConv(EvTextInput, PTextInputEvent, {TextInput})
+template EvConv(name, name2, ptype: expr; valid: set[TEventType]): stmt {.immediate.}=
+  proc `name`* (event: var TEvent): ptype =
+    assert event.kind in valid
+    return cast[ptype](addr event)
+  proc `name2`* (event: var TEvent): ptype =
+    assert event.kind in valid
+    return cast[ptype](addr event)
 
-  EvConv(EvMouseMotion, PMouseMotionEvent, {MouseMotion})
-  EvConv(EvMouseButton, PMouseButtonEvent, {MouseButtonDown, MouseButtonUp})
-  EvConv(EvMouseWheel, PMouseWheelEvent, {MouseWheel})
+EvConv(EvWindow, window, PWindowEvent, {WindowEvent})
+EvConv(EvKeyboard, key, PKeyboardEvent, {KeyDown, KeyUP})
+EvConv(EvTextEditing, edit, PTextEditingEvent, {TextEditing})
+EvConv(EvTextInput, text, PTextInputEvent, {TextInput})
 
-  EvConv(EvJoyAxis, PJoyAxisEvent, {JoyAxisMotion})
-  EvConv(EvJoyBall, PJoyBallEvent, {JoyBallMotion})
-  EvConv(EvJoyHat, PJoyHatEvent, {JoyHatMotion})
-  EvConv(EvJoyButton, PJoyButtonEvent, {JoyButtonDown, JoyButtonUp})
+EvConv(EvMouseMotion, motion, PMouseMotionEvent, {MouseMotion})
+EvConv(EvMouseButton, button, PMouseButtonEvent, {MouseButtonDown, MouseButtonUp})
+EvConv(EvMouseWheel, wheel, PMouseWheelEvent, {MouseWheel})
 
-  EvConv(EvTouchFinger, PTouchFingerEvent, {FingerMotion, FingerDown, FingerUp})
-  EvConv(EvTouchButton, PTouchButtonEvent, {TouchButtonUP, TouchButtonDown})
-  EvConv(EvMultiGesture, PMultiGestureEvent, {MultiGesture})
-  EvConv(EvDollarGesture, PDollarGestureEvent, {DollarGesture})
+EvConv(EvJoyAxis, jaxis, PJoyAxisEvent, {JoyAxisMotion})
+EvConv(EvJoyBall, jball, PJoyBallEvent, {JoyBallMotion})
+EvConv(EvJoyHat, jhat, PJoyHatEvent, {JoyHatMotion})
+EvConv(EvJoyButton, jbutton, PJoyButtonEvent, {JoyButtonDown, JoyButtonUp})
+EvConv(EvJoyDevice, jdevice, PJoyDeviceEvent, {JoyDeviceAdded, JoyDeviceRemoved})
 
-  EvConv(EvDropFile, PDropEvent, {DropFile})
-  EvConv(EvQuit, PQuitEvent, {QuitEvent})
+EvConv(EvControllerAxis, caxis, PControllerAxisEvent, {ControllerAxisMotion})
+EvConv(EvControllerButton, cbutton, PControllerButtonEvent, {ControllerButtonDown, ControllerButtonUp})
+EvConv(EvControllerDevice, cdevice, PControllerDeviceEvent, {ControllerDeviceAdded, ControllerDeviceRemoved})
 
-  EvConv(EvUser, PUserEvent, {UserEvent, UserEvent1, UserEvent2, UserEvent3, UserEvent4, UserEvent5})
-  EvConv(EvSysWM, PSysWMEvent, {SysWMEvent})
+EvConv(EvTouchFinger, tfinger, PTouchFingerEvent, {FingerMotion, FingerDown, FingerUp})
+EvConv(EvMultiGesture, mgesture, PMultiGestureEvent, {MultiGesture})
+EvConv(EvDollarGesture, dgesture, PDollarGestureEvent, {DollarGesture})
 
+EvConv(EvDropFile, drop, PDropEvent, {DropFile})
+EvConv(EvQuit, quit, PQuitEvent, {QuitEvent})
 
-
+EvConv(EvUser, user, PUserEvent, {UserEvent, UserEvent1, UserEvent2, UserEvent3, UserEvent4, UserEvent5})
+#EvConv(EvSysWM, syswm, PSysWMEvent, {SysWMEvent})
 
 const ## SDL_MessageBox flags. If supported will display warning icon, etc.
   SDL_MESSAGEBOX_ERROR* = 0x00000010 #*< error dialog 
