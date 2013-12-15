@@ -744,7 +744,7 @@ proc CopyEx*(renderer: PRenderer; texture: PTexture;
              importc: "SDL_RenderCopyEx", discardable.}
 proc CopyEx*(renderer: PRenderer; texture: PTexture;
              srcRect, dstRect: ptr TRect; angle: cdouble; center: ptr TPoint;
-             flip: TRenderFlip = SDL_FLIP_NONE): SDL_Return {.
+             flip: TRendererFlip = SDL_FLIP_NONE): SDL_Return {.
              importc: "SDL_RenderCopyEx", discardable.}
 
 proc Clear*(renderer: PRenderer): cint {.
