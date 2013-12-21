@@ -1,6 +1,6 @@
-import fowltek/pointer_arithm, algorithm, sequtils
-import hashes, tables, typetraits, strutils
-import macros, fowltek/macro_dsl
+import algorithm, sequtils
+import hashes, tables, typetraits, strutils, macros
+from fowltek/pointer_arithm import alloc
 
 when NimrodVersion < "0.9.3":
   {.error: "Entitty is written with features that require bleeding-edge Nimrod.".}
@@ -11,17 +11,8 @@ when NimrodVersion < "0.9.3":
 template Issue431(x): expr = (x + 30)
   # offset added to numbers affected by nimrod issue 431 (temp, unscaling hack)
 
-template Safe_Import* (module): stmt {.dirty, immediate.} =
-  when not defined(module): import module
-
 #export typetraits.name
 export typetraits, tables, strutils
-
-template Entitty_Imports* : stmt {.dirty.} =
-  ## Import entitty's required libraries, call this before you declare your components.
-  #Safe_import typetraits
-  #Safe_import tables
-  #Safe_Import strutils
 
 type
   PComponentInfo* = ref object{.inheritable.}
@@ -37,7 +28,6 @@ type
   
   PTypeInfo* = ptr TTypeInfo
   TTypeInfo* = object
-    components: seq[PComponentInfo]
     allComponents: seq[PComponentInfo] # replacement for .components, unavailable components here are NIL
     offsets*: seq[int]
     instantiatedSize: int
@@ -67,27 +57,13 @@ type
 var
   allComponents* {.global.}: seq[PComponentInfo] = @[]
   messageTypes*: array[512, bool] ## true if the message is multicast
-  messageTypes_ct {.compileTime.}: array[512, bool]
 template isMulticastMsg*(id: expr[string]): bool = (bind messageTypes)[messageID(id)]
-template isMulticastMsg_ct (id: expr[string]): bool = messageTypes_ct[messageID_ct(id)] 
-
-template idCounter(name, varname): stmt =
-  var varname* {.inject, global.}: int
-  proc `next name`: int =
-    result = varname
-    inc varname
-#idCounter MessageID, numMessages
 
 var numMessages* = 0
 proc nextMessageID*: int = 
   result = numMessages
   inc numMessages
 
-
-var numMessages_ct {.compileTime.} = 0
-proc nextMessageID_CT* : int{.compileTime.}=
-  result = numMessages_CT
-  inc numMessages_CT
 
 var numComponents* = 0
 
@@ -103,53 +79,6 @@ template addMulticastMsg* (T: Typedesc; M: expr[string]; func: proc): stmt =
     echo "wahh wahh you're overriding the definition of message ", M, " for ", comp.name
   comp.multicast_messages[msg_id] = cast[pointer](func)
 
-macro msg_impl2* : stmt {.immediate.} =
-  
-  let 
-    cs = callsite()
-  if len(cs) > 5 or len(cs) < 4:
-    quit "Malformed arguments for msg_impl()"
-  
-  let
-    component = cs[1]
-    msg = cs[2]
-  var 
-    func: PNimrodNode
-    weight = 0
-  
-  ## hack: if you invoke do with no parameters just the stmt list is sent. 
-  template getRealFunction(fromNode): expr =
-    block:
-      var result: PNimrodNode
-      case fromNode.kind
-      of nnkStmtList:
-        result = newProc(procType = nnkDo, body = fromNode)
-      of routineNodes: 
-        result = fromNode
-      else:
-        quit "Invalid parameter kind: $# \n $#" % [$fromNode.kind, lispRepr(fromNode)]
-      result
-  
-  if len(cs) == 4:
-    func = getRealFunction(cs[3])
-  else:
-    weight = cs[3].intval.int
-    func = getRealFunction(cs[4])
-  # block:
-  #  let comp = componentInfo(component)
-  #  let messageID = 
-  #  when isMulticastMsg_ct(msg):
-  #   if comp.multicast_messages.hasKey(msg_id):
-  #     echo "Overriding ", msg, " for ", comp.name
-  #  else:
-  #   if comp.unicast_messages.hasKey(msg_id):
-  #
-  #   
-  # set_component_message(
-  #  componentInfo(component), messageID_CT(msg), isMulticastMsg_CT(msg),
-  #  proc(X: PEntity; ..) = ...
-  # )
-   
 macro msg_impl* : stmt {.immediate.} =
   # Implements a message for a component
   # 
@@ -207,18 +136,18 @@ macro msg_impl* : stmt {.immediate.} =
   template addEXPR(msg): expr =  addNODE parseExpr(msg)
   
   #  let msg_id = MessageID(`msg as a string literal`)
-  addNode newLetStmt(!!"msg_id", newCall("MessageID", msg_str.copyNimNode()))
+  addNode newLetStmt(ident"msg_id", newCall("MessageID", msg_str.copyNimNode()))
   #  let comp = componentInfo(component)
-  addNode newLetStmt(!!"comp", newCall("componentInfo", component.copy))
+  addNode newLetStmt(ident"comp", newCall("componentInfo", component.copy))
   
   template complainAboutOverriding(msgType): expr = parseExpr("""echo "Overriding the implementation of $1 message `$2` for ", comp.name""" %
     [msgType, $msg_str])
   
-  var castexpr = newNimNode(nnkCast).add(!!"pointer")
+  var castexpr = newNimNode(nnkCast).add(ident"pointer")
   var this_lambda = newNimNode(nnkLambda)
   func.copyChildrenTo this_lambda
   this_lambda[3].insert 1, newNimNode(nnkIdentDefs).add(
-    !!"entity", !!"PEntity", newEmptyNode())
+    ident"entity", ident"PEntity", newEmptyNode())
   castexpr.add this_lambda
   
   let branch = newNimNode(nnkIfStmt)
@@ -248,9 +177,9 @@ macro msg_impl* : stmt {.immediate.} =
     # (weight: this_weight, func: cast[pointer](..))  ## (tuple constructor)
     let rhs = newNimNode(nnkPar).add(
       newNimNode(nnkExprColonExpr).add(
-        !!"weight", newIntLitNode(weight)),
+        ident"weight", newIntLitNode(weight)),
       newNimNode(nnkExprColonExpr).add(
-        !!"func", castExpr)
+        ident"func", castExpr)
     )
     let thisBranch = newNimNode(nnkElse)
     branch.add thisBranch
@@ -303,10 +232,6 @@ proc componentID*(s: expr[string]): int =
 proc messageID*(msg: expr[string]): int =
   var id {.global.} = nextMessageID()
   return id
-proc messageID_CT*(msg: expr[string]): int =
-  var id{.global.} = nextMessageID_CT()
-  return id
-
 
 macro unicast*(func): stmt =
   when false:
@@ -320,7 +245,7 @@ macro unicast*(func): stmt =
   
   if not f[3].hasArgOfName("entity"):
     f[3].insert(1, newNimNode(nnkIdentDefs).add(
-      !!"entity", !!"PEntity", newEmptyNode()))
+      ident"entity", ident"PEntity", newEmptyNode()))
   
   var f_sig_pragma = f.pragma.copy
   f_sig_pragma.add_ident_if_absent "noConv"
@@ -339,7 +264,7 @@ macro unicast*(func): stmt =
     ## IdentDefs(Ident(!"entity"), Ident(!"PEntity"), Empty())  ## this one gets inserted
     ## IdentDefs(Ident(!"x"), Ident(!"y"), Ident(!"float"), Empty())  ## example of (x,y: float)
     for index in 0 .. f.params[i].len - 3:
-      f_call_args.add(!! $ f.params[i][index])
+      f_call_args.add(ident($ f.params[i][index]))
   
   var f_call = newCall(
     newNimNode(nnkCast).add(f_signature, f_pointer)
@@ -353,7 +278,7 @@ macro unicast*(func): stmt =
   ) ) )
   
   #f[6].insert(0, parseExpr("echo repr(entity)"))
-  result = newStmtList(parseExpr("entitty_imports"), f)
+  result = f#newStmtList(parseExpr("entitty_imports"), f)
   
   when defined(Debug):
     echo "Unicast macro result: "
@@ -372,7 +297,7 @@ macro multicast*(func): stmt =
   
   if not resultish[3].hasArgOfName("entity"):
     resultish[3].insert 1, newNimNode(nnkIdentDefs).add(
-      !!"entity", !!"PEntity", newNimNode(nnkEmpty))
+      ident"entity", ident"PEntity", newNimNode(nnkEmpty))
   
   #do what {.unicast.} does with a different body (fooMulti())
   var result_body = newseq[PNimrodNode](0)
@@ -395,10 +320,10 @@ macro multicast*(func): stmt =
   var call_args = newSeq[PNimrodNode](0)
   for i in 1 .. <len(resultish.params): call_args.add(resultish.params[i][0])
   
-  let callExpr = newCall(newNimNode(nnkCast).add(procTy, !!"msg")).add(call_args)
+  let callExpr = newCall(newNimNode(nnkCast).add(procTy, ident"msg")).add(call_args)
   
   let forStmt = newNimNode(nnkForStmt).add(
-    !!"msg", newCall("items", parseExpr("runList[]")), newStmtList(callExpr))
+    ident"msg", newCall("items", parseExpr("runList[]")), newStmtList(callExpr))
   
   result_body.add newStmtList(forStmt)
   discard """ result_body.add newNimNode(nnkIfStmt).add(
@@ -474,7 +399,7 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
   if numThisComponents == 0: errors.add "Typeinfo created with no components!"
   
   result = alloc[TTypeInfo]()
-  newSeq result.components, numThisComponents
+  #newSeq result.components, numThisComponents
   newSeq result.allComponents, Issue431(numComponents)
   newSeq result.offsets, Issue431(numComponents)
   
@@ -490,13 +415,15 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
   var requiredComponents = newSeq[int](0)
   
   var offs = 0
-  for index, component_id in pairs(components):
-    result.components[index] = allComponents[component_id]
+  #for index, component_id in pairs(components):
+  for component_id in components:
+    #result.components[index] = allComponents[component_id]
     result.allComponents[component_id] = allComponents[component_id]
     template thisComponent: expr =
       #when false: result.allComponents[component_id]
       #else: 
-      result.components[index]
+      #result.components[index]
+      result.allComponents[component_id]
     
     result.offsets[component_id] = offs
     inc offs, thisComponent.size
@@ -521,18 +448,8 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
 
   # collect required components
   for required_comp in distnct(requiredComponents):
-    block componentCheck:
-      when true:
-        if result.allComponents[required_comp].isNIL:
-          errors.add "requires component $#" % allComponents[required_comp].name
-
-      else:
-        for my_comp in result.components:
-          if my_comp.id == required_comp:
-            break componentCheck
-          elif my_comp.id > required_comp:
-            break
-        errors.add "requires component $#" % allComponents[required_comp].name
+    if result.allComponents[required_comp].isNIL:
+      errors.add "requires component $#" % allComponents[required_comp].name
 
   result.validType = true
   if errors.len > 0:
@@ -563,9 +480,9 @@ proc collectRequiredComponentIDs (ty: PTypeInfo): seq[int] =
 proc summary* (ty: PTypeInfo): string =
   let requiredComponents = ty.collectRequiredComponentIDs()
   
-  return "$1 components: $2 \L$3 required components: $4".format(
-    ty.components.len, ty.components.map(proc(x: PComponentInfo): string = x.name).join(", "),
-    requiredComponents.len, requiredComponents.map(proc(id: int): string = allComponents[id].name).join(", "))
+  #return "$1 components: $2 \L$3 required components: $4".format(
+  #  ty.components.len, ty.components.map(proc(x: PComponentInfo): string = x.name).join(", "),
+  #  requiredComponents.len, requiredComponents.map(proc(id: int): string = allComponents[id].name).join(", "))
 
 proc instantiate (ty: PTypeInfo): PEntityData = 
   if not ty.validType:
@@ -579,9 +496,6 @@ proc newEntity*(typeinfo: PTypeInfo): TEntity =
   # to optimize, could move this step to newTypeInfo() 
   for initializer in result.typeInfo.initializers:
     initializer result
-  #for comp in result.typeInfo.components: 
-  #  if comp.isNil or comp.initializer.isNil: continue
-  #  comp.initializer(result)
 
 proc newEntity*(manager: var TDomain; components: varargs[int, `componentID`]): TEntity = 
   return manager.getTypeInfo(components).newEntity
