@@ -56,10 +56,10 @@ proc get* (cache: var TSpriteCache; R: PRenderer; file: string): PSprite =
   cache.tab[file] = result
 
 proc getFrame* (sprite: PSprite; row, col: int; rect: var TRect) {.inline.} =
-  rect = sprite.defaultRect
-  rect.x = cint(rect.w * row)
-  rect.y = cint(rect.h * col)
+  rect.x = cint(rect.w * col)
+  rect.y = cint(rect.h * row)
 proc getFrame* (sprite: PSprite; row,col: int): TRect {.inline.} =
+  result = sprite.defaultRect
   sprite.getFrame row, col, result
 
 when false:
