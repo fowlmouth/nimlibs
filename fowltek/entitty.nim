@@ -6,6 +6,10 @@ when NimrodVersion < "0.9.3":
   {.error: "Entitty is written with features that require bleeding-edge Nimrod.".}
   # "Entitty is written with features that require at least Nimrod 0.9.2. Gonna need you to go ahead and upgrade, thanks.".}
 
+# Defines available
+#   PDomainIsReference - makes PDomain a ref type
+#   EntittyAutoAddRequiredComponents - 
+
 {.deadCodeElim: on.}
 
 template Issue431(x): expr = (x + 30)
@@ -21,23 +25,26 @@ type
     size*: int
     unicast_messages*: TTable[int, TWeightedUnicastFunc] ## unicast messages implemented by this component, with their weight
     multicast_messages*: TTable[int, pointer] 
-    initializer: proc(E: PEntity)
+    initializer*,destructor*: proc(E: PEntity)
     requiredComponents, conflictingComponents: seq[int]
     
   TWeightedUnicastFunc* = tuple[weight: int, func: pointer]
   
   PTypeInfo* = ptr TTypeInfo
   TTypeInfo* = object
-    allComponents: seq[PComponentInfo] # replacement for .components, unavailable components here are NIL
+    allComponents*: seq[PComponentInfo] # replacement for .components, unavailable components here are NIL
     offsets*: seq[int]
     instantiatedSize: int
 
     vtable*: seq[pointer]
     multicast*: seq[seq[pointer]] ## [msg_id][functions] 
     initializers*: seq[proc(entity: PEntity)] 
+    destructors: seq[proc(entity: PEntity)]
     
     validType: bool
     whatsTheProblem: string
+    
+    
 
   PEntity* = var TEntity
   TEntity* = object
@@ -51,7 +58,12 @@ type
   TDomain* = object
     typeInfosTable: TTable[seq[int], PTypeInfo]
 
+when defined(PDomainIsReference):
+  type PDomain* = ref TDomain
+else:
+  type PDomain* = var TDomain
 
+type
   E_InvalidComponent* = object of E_Base
   E_BadEntity* = object of E_Base
 var
@@ -60,13 +72,25 @@ var
 template isMulticastMsg*(id: expr[string]): bool = (bind messageTypes)[messageID(id)]
 
 var numMessages* = 0
-proc nextMessageID*: int = 
+proc nextMessageID: int = 
   result = numMessages
   inc numMessages
 
+var 
+  messageIDs {.global.} = initTable[string, int](512)
+proc getMessageID*(msg: string): int =
+  let normalized = msg.normalize
+  if messageIDs.hasKey(normalized):
+    return messageIDs[normalized]
+  result = nextMessageID()
+  messageIDs[normalized] = result
+
+proc messageID*(msg: expr[string]): int =
+  var id {.global.} = getMessageID(msg)# nextMessageID()
+  return id
+  
 
 var numComponents* = 0
-
 
 template addUnicastMsg* (T: typedesc; M: expr[string]; weight: int, func: proc): stmt =
   let id = componentID(T)
@@ -229,10 +253,6 @@ proc componentID*(s: expr[string]): int =
   var id{.global.} = findComponent(s)
   return id
 
-proc messageID*(msg: expr[string]): int =
-  var id {.global.} = nextMessageID()
-  return id
-
 macro unicast*(func): stmt =
   when false:
     echo "Unicast macro accepted parameter: "
@@ -247,8 +267,12 @@ macro unicast*(func): stmt =
     f[3].insert(1, newNimNode(nnkIdentDefs).add(
       ident"entity", ident"PEntity", newEmptyNode()))
   
-  var f_sig_pragma = f.pragma.copy
+  var f_sig_pragma = f.pragma.copyNimTree
+  var f_new_pragma = f.pragma.copyNimTree
   f_sig_pragma.add_ident_if_absent "noConv"
+  #f_sig_pragma.add_ident_if_absent "procvar"
+  f_new_pragma.add_ident_if_absent "procvar"
+  f.pragma = f_new_pragma
   
   var f_signature = newNimNode(nnkProcTy).add(
     f.params.copy,
@@ -350,35 +374,6 @@ proc requiresComponent*(T: typedesc; requiredComponents: varargs[int, `component
   #sort comp.requiredComponents, cmp[int] #not working??
   sort comp.requiredComponents, proc(x, y: int): int = cmp(x, y)
 
-discard """
-proc defComponent* (T: typedesc;
-    name: string = nil) =
-  let id = ComponentID(T)
-  allComponents.ensureLen id+1
-  
-  var thisComponent = allComponents[id]
-  if not thisComponent.isNil:
-    echo "Overriding component definition for ", thisComponent.name, " with ", name(T)
-    quit 1
-
-  var comp = PComponentInfo(
-    id: id,
-    size: sizeof(T),
-    name: name(T),
-    unicast_messages: initTable[int, TWeightedUnicastFunc](4),
-    multicast_messages: initTable[int, pointer](4),
-    requiredComponents: @[],
-    conflictingComponents: @[]
-  )
-  allComponents[id] = comp
-
-  if not name.isNil:
-    comp.name = name
-  
-  when defined(DEBUG):
-    echo "Component #$# declared `$#`".format(comp.id, comp.name)
-"""
-
 macro component*: stmt =
   ## type Foo {.component.} = object ...
   ## (when nimrod supports it)
@@ -410,6 +405,7 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
   for i in 0 .. <Issue431(numMessages):
     newSeq result.multicast[i], 0
   newSeq result.initializers, 0
+  newSeq result.destructors, 0
   
   var unicastWeights = newSeq[int](Issue431(numMessages))
   var requiredComponents = newSeq[int](0)
@@ -443,6 +439,8 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
     requiredComponents.add thisComponent.requiredComponents
     unless thisComponent.initializer.isNil:
       result.initializers.add thisComponent.initializer
+    unless thisComponent.destructor.isNil:
+      result.destructors.add thisComponent.destructor
 
   result.instantiatedSize = offs
 
@@ -459,11 +457,17 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
 proc isValid* (ty: PTypeInfo): bool {.inline.} = ty.validType
 proc getError* (ty:PTypeInfo):string{.inline.} = ty.whatsTheProblem
 
-proc newDomain*: TDomain = 
-  result.typeInfosTable = initTable[seq[int],PTypeInfo](512)
-proc newEntityManager*: TDomain {.deprecated.} = newDomain()
+when defined(PDomainIsReference):
+  proc newDomain*: PDomain = 
+    result = PDomain(
+      typeInfosTable: initTable[seq[int], PTypeinfo](512)
+    )
+else:
+  proc newDomain*: TDomain = 
+    result.typeInfosTable = initTable[seq[int],PTypeInfo](512)
+  proc newEntityManager*: TDomain {.deprecated.} = newDomain()
 
-proc getTypeInfo* (dom: var TDomain; components: varargs[int, `componentID`]): PTypeInfo =
+proc getTypeInfo* (dom: PDomain; components: varargs[int, `componentID`]): PTypeInfo =
   var components = @components
   components.sort cmp[int]
   result = dom.typeInfosTable[components]
@@ -490,24 +494,31 @@ proc instantiate (ty: PTypeInfo): PEntityData =
       ty.whatsTheProblem)
   return cast[PEntityData](alloc0(ty.instantiatedSize))
 
-proc newEntity*(typeinfo: PTypeInfo): TEntity =
+proc newEntity*(typeinfo: PTypeInfo; initialize = true): TEntity =
   result = TEntity(typeInfo: typeInfo, data: typeInfo.instantiate)
   
-  # to optimize, could move this step to newTypeInfo() 
-  for initializer in result.typeInfo.initializers:
-    initializer result
+  if initialize:
+    # to optimize, could move this step to newTypeInfo() 
+    for initializer in result.typeInfo.initializers:
+      initializer result
 
-proc newEntity*(manager: var TDomain; components: varargs[int, `componentID`]): TEntity = 
+proc newEntity*(manager: PDomain; components: varargs[int, `componentID`]): TEntity = 
   return manager.getTypeInfo(components).newEntity
 
 proc destroy* (some: PEntity) {.inline.} =
+  for f in some.typeinfo.destructors:
+    f(some)
   dealloc some.data
-  reset some.data
+  reset some
 
 proc setInitializer*(component: typedesc, func: proc(x: PEntity)) =
   componentInfo(component).initializer = func
   when defined(Debug): 
     echo "set initializer for ", componentInfo(component).name  
+proc setDestructor*(component: typedesc; func: proc(x: PEntity)) =
+  componentInfo(component).destructor = func
+  when defined(Debug):
+    echo "set destructor for ", componentInfo(component).name
 
 proc hasComponent*(entity: PEntity; T: Typedesc): bool {.
   inline.} = not entity.typeInfo.allComponents[componentID(T)].isNil
