@@ -528,3 +528,59 @@ proc get*(entity: PEntity; T: typedesc): var T =
   return cast[ptr T](entity.data[offset].addr)[]
 proc `[]`*(entity: PEntity; T: typedesc): var T {.inline.} = get(entity, T)
 proc `[]=`*(entity: PEntity; ty: typedesc; val: ty) {.inline.} = (entity[ty]) = val
+
+
+
+proc changeComponents* (dom: PDomain; ty: PTypeinfo; add, remove: varargs[int, `componentID`]): PTypeInfo =
+  var comps: seq[int] = @[]
+  
+  for id, c in ty.allComponents:
+    if not c.isNil:
+      if id notin remove:
+        # keep it
+        comps.add id
+    else:
+      # does not have
+      if id in add:
+        comps.add id
+  
+  return dom.getTypeinfo(comps)
+
+
+proc components* (types: varargs[int,`componentID`]): seq[int] =
+  @types
+
+proc changeComponents* (
+    dom: PDomain; entity: PEntity; 
+    add, remove: seq[int])=
+  let ty = dom.changeComponents(entity.typeInfo, add=add, remove=remove) 
+  var newEnt = ty.newEntity(false)
+  
+  for idx, c1 in entity.typeinfo.allComponents:
+    let c2 = newEnt.typeInfo.allComponents[idx]
+    # run destructor for types in c1 but not in c2
+    # run initializer for new types (c2 and not c1)
+    # copy data for existing types 
+    if not(c1.isNil) and not(c2.isNil):
+      copyMem(
+        newEnt.data[ty.offsets[c1.id]].addr,
+        entity.data[entity.typeinfo.offsets[c1.id]].addr,
+        c1.size
+      )
+    elif c1.isNIl and not(c2.isNil):
+      if not c2.initializer.isNil:
+        c2.initializer(newEnt)
+    elif not(c1.isNil) and c2.isNil:
+      if not c1.destructor.isNil:
+        c1.destructor(entity)
+
+  swap newEnt.typeinfo, entity.typeInfo
+  swap newEnt.data, entity.data
+  dealloc newEnt.data
+  
+proc removeComponents* (dom: PDomain; entity: PEntity; remove: varargs[int, `componentID`]) =
+  changeComponents(dom, entity, add= @[], remove= @remove)
+proc addComponents* (dom: PDomain; entity: PEntity; add: varargs[int, `componentID`]) =
+  changeComponents(dom, entity, add= @add, remove= @[])
+
+
