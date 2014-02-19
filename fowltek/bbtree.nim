@@ -1,3 +1,5 @@
+# stole from gamebox with <3
+# https://github.com/shawn42/gamebox
 import tables, fowltek/maybe_t, fowltek/boundingbox
 export tables, boundingbox, maybe_t
 
@@ -81,7 +83,7 @@ proc proximity* [T] (node, leaf: PBB_Node[T]): float = (
  
 proc insertSubtree*[T] (node, leaf: PBB_Node[T]): PBB_Node[T] =
   if node.isLeaf:
-    var n_n : PBB_node[T] #= newBBnode[T](node.bb.unionFast(leaf.bb))
+    var n_n : PBB_node[T]
     new n_n
     n_n.bb = node.bb.unionFast(leaf.bb)
     n_n.a = node
@@ -114,21 +116,28 @@ proc remove*[T] (tree: PBB_Tree[T]; item: T) =
     tree.root = tree.root.removeSubtree(tree.items[item]) 
     tree.items.del item
 
-proc update*[T] (tree: PBB_Tree[T]; item: T; bb: TBB) =
+proc update*[T] (tree: PBB_Tree[T]; item: T; bb: TBB)
+proc insert*[T] (tree: PBB_Tree[T]; item: T; bb: TBB) =
+  if tree.items.hasKey(item):
+    tree.update item, bb
+    return
+  var leaf = newBBnode[T](item, bb)
+  tree.items[item] = leaf
+  tree.insertLeaf leaf
+
+proc update [T] (tree: PBB_Tree[T]; item: T; bb: TBB) =
   let node = tree.items[item]
-  if not(node.isNil) and node.isLeaf:
+  if node.isNil:
+    tree.insert item, bb
+  elif node.isLeaf:
     if bb notin node.bb:
       node.bb = bb
       tree.root = tree.root.removeSubtree(node)
       tree.insertLeaf node
 
-proc insert*[T] (tree: PBB_Tree[T]; item: T; bb: TBB) =
-  if tree.items.hasKey(item):
-    update[T](tree, item, bb)
-    return
-  var leaf = newBBnode[T](item, bb)
-  tree.items[item] = leaf
-  tree.insertLeaf leaf
+proc update* [T] (tree: PBB_Tree[T]; func: proc(item: T): TBB) =
+  for key in tree.items.keys:
+    tree.update key, func(key)
 
 proc querySubtree* [T] (node: PBB_Node[T]; bb: TBB; cb: proc(item: T)) =
   if node.bb.collidesWith(bb):

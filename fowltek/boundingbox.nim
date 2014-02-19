@@ -14,24 +14,21 @@ proc right* (a: TBB): float {.inline.} = a.left + a.width
 proc bottom*(a: TBB): float {.inline.} = a.top + a.height
 proc area*  (a: TBB): float {.inline.} = a.width * a.height
 
-proc unionArea* (a, b: TBB): float {.inline.} = (
+proc unionArea* (a, b: TBB): float {.inline.} = 
   (a.right.max(b.right) - a.left.min(b.left)) *
-  (a.bottom.max(b.bottom) - a.top.min(b.top))    )
+    (a.bottom.max(b.bottom) - a.top.min(b.top))
 
-proc unionFast* (a, b: TBB): TBB =
-  let
-    rleft = a.left.min(b.left)
-    rtop = a.top.min(b.top)
-  return (rleft, rtop, a.right.max(b.right) - rleft, a.bottom.max(b.bottom) - rtop)
+proc unionFast* (a, b: TBB): TBB =  
+  result.left = a.left.min(b.left)
+  result.top = a.top.min(b.top)
+  result.width = a.right.max(b.right) - result.left
+  result.height = a.bottom.max(b.bottom) - result.top
 
 proc expandToInclude* (bb: var TBB; b: TBB) =
-  let 
-    left = bb.left.min(b.left)
-    top = bb.top.min(b.top)
-  bb.left = left
-  bb.top = top
-  bb.width = bb.right.max(b.right) - left
-  bb.height = bb.bottom.max(b.bottom) - top 
+  bb.left = bb.left.min(b.left)
+  bb.top  = bb.top.min(b.top)
+  bb.width  = bb.right.max(b.right) - bb.left
+  bb.height = bb.bottom.max(b.bottom) - bb.top 
 
 proc refitFor* (bb: var TBB; a, b: TBB) =
   reset bb 
@@ -42,9 +39,9 @@ proc collidesWith* (a, b: TBB): bool {.inline.} = (
   ( (a.left >= b.left and a.left <= b.right) or (b.left >= a.left and b.left <= a.right) ) and
   ( (a.top >= b.top   and a.top <= b.bottom) or (b.top >= a.top   and b.top <= a.bottom) ) )
 
-proc contains* (a, b: TBB): bool = (
-  a.left <= b.left and b.right <= a.right and
-  a.top <= b.top   and b.bottom <= a.bottom )
+proc contains* (a, b: TBB): bool {.inline.} =
+  ( b.left >= a.left and b.right <= a.right and
+    b.top >= a.top and b.bottom <= a.bottom )
 
 from fowltek/vector_math import TVector2
 proc contains* (a: TBB; b: TVector2[float]): bool = (
