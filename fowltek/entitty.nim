@@ -43,8 +43,6 @@ type
     
     validType: bool
     whatsTheProblem: string
-    
-    
 
   PEntity* = var TEntity
   TEntity* = object
@@ -244,7 +242,7 @@ proc nextComponentID*(T: typedesc): int =
 proc componentID*(T: typedesc): int =
   var id {.global.} = nextComponentID(T)
   return id
-proc findComponent(s: string): int = 
+proc findComponent*(s: string): int = 
   for c in allComponents:
     if c.name == s:
       return c.id
@@ -261,7 +259,7 @@ macro unicast*(func): stmt =
   var f = func[6]
   
   let messageName = $ f.name.basename
-  let isVoid = f.params[0].kind == nnkEmpty or ($f.params[0]).toLower == "void"
+  let isVoid = f.params[0].kind == nnkEmpty or (f.params[0].kind == nnkIdent and ($f.params[0]).toLower == "void")
   
   if not f[3].hasArgOfName("entity"):
     f[3].insert(1, newNimNode(nnkIdentDefs).add(
