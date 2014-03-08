@@ -244,7 +244,7 @@ const
       aiProcess_FindInstances or aiProcess_ValidateDataStructure or
       aiProcess_OptimizeMeshes)
 
-{.push cdecl, dynlib: LibName.}
+{.push callconv: cdecl, dynlib: LibName.}
 
 proc aiImportFile*(filename: cstring; flags: cint): PScene {.importc.}
 proc aiImportFileFromMemory*(pBuffer: cstring; 
