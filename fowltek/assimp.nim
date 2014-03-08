@@ -1,5 +1,10 @@
 import unsigned
-const LibName = "libassimp.so.2"
+#we assume only windows and linux exist
+#the .dynlib version can eaisly be added
+when defined(windows):
+  const LibName = "assimp.dll"
+else:
+  const LibName = "libassimp.so"
 
 const
   AI_MAX_NUMBER_OF_COLOR_SETS = 4
@@ -239,10 +244,17 @@ const
       aiProcess_FindInstances or aiProcess_ValidateDataStructure or
       aiProcess_OptimizeMeshes)
 
-{.push: cdecl, dynlib: LibName.}
+{.push callconv: cdecl, dynlib: LibName.}
 
 proc aiImportFile*(filename: cstring; flags: cint): PScene {.importc.}
+proc aiImportFileFromMemory*(pBuffer: cstring; 
+                            pLength, pFlags: uint32; 
+                            pHint: cstring): PScene {.importc.}
+proc aiEnableVerboseLogging*(d: bool) {.importc.}
+proc aiReleaseImport*(pScene: PScene) {.importc.}
 proc getError*(): cstring {.importc: "aiGetErrorString".}
+
+
 
 proc getTexture*(material: PMaterial; kind: TTextureType; index: cint; 
   path: ptr AIstring; mapping: ptr TTextureMapping = nil, uvIndex: ptr cint = nil;
