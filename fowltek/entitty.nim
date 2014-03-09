@@ -12,8 +12,10 @@ when NimrodVersion < "0.9.3":
 
 {.deadCodeElim: on.}
 
-template Issue431(x): expr = (x + 30)
+template Issue431(x): expr = x #(x + 64)
   # offset added to numbers affected by nimrod issue 431 (temp, unscaling hack)
+  # update: I think I fixed this by using the messageIDs table's length as numMessages (allComponents length is used for numComponents)
+  #  not pretty, but it works for now
 
 #export typetraits.name
 export typetraits, tables, strutils
@@ -69,13 +71,16 @@ var
   messageTypes*: array[512, bool] ## true if the message is multicast
 template isMulticastMsg*(id: expr[string]): bool = (bind messageTypes)[messageID(id)]
 
-var numMessages* = 0
+var num_msgs = 0
 proc nextMessageID: int = 
-  result = numMessages
-  inc numMessages
+  result = num_msgs
+  inc num_msgs
+
 
 var 
   messageIDs {.global.} = initTable[string, int](512)
+template numMessages* : int = (bind messageIDs).len
+
 proc getMessageID*(msg: string): int =
   let normalized = msg.normalize
   if messageIDs.hasKey(normalized):
@@ -88,7 +93,8 @@ proc messageID*(msg: expr[string]): int =
   return id
   
 
-var numComponents* = 0
+var numCmps = 0
+template numComponents*: int = allComponents.len
 
 template addUnicastMsg* (T: typedesc; M: expr[string]; weight: int, func: proc): stmt =
   let id = componentID(T)
@@ -220,8 +226,8 @@ macro msg_impl* : stmt {.immediate.} =
   when defined(Debug):  echo repr(result)
 
 proc nextComponentID*(T: typedesc): int = 
-  result = numComponents
-  inc numComponents
+  result = numCmps
+  inc numCmps
   allComponents.ensureLen(result+1)
 
   var comp = PComponentInfo(
@@ -408,11 +414,27 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
   var unicastWeights = newSeq[int](Issue431(numMessages))
   var requiredComponents = newSeq[int](0)
   
+  when defined(EntittyAutoAddRequiredComponents):
+    var components = components
+    while true:
+      let c_len = components.len
+      for component_idx in 0 .. high(components): 
+        let this_comp = components[component_idx]
+        components.add allComponents[this_comp].requiredComponents
+      components = distnct(components)
+      components.sort(system.cmp[int])
+      if c_len == components.len: break
+  
   var offs = 0
   #for index, component_id in pairs(components):
   for component_id in components:
     #result.components[index] = allComponents[component_id]
-    result.allComponents[component_id] = allComponents[component_id]
+    try:
+      result.allComponents[component_id] = allComponents[component_id]
+    except EInvalidIndex:
+      quit "omfg what the hell have you done?! $# is not a valid component! (numcomponents: $#)" % [$component_id, $numcomponents]
+      continue
+      
     template thisComponent: expr =
       #when false: result.allComponents[component_id]
       #else: 
@@ -443,13 +465,13 @@ proc newTypeInfo* (components: seq[int]): PTypeInfo =
   result.instantiatedSize = offs
 
   # collect required components
-  for required_comp in distnct(requiredComponents):
+  requiredComponents = distnct(requiredComponents)
+  for required_comp in requiredComponents:
     if result.allComponents[required_comp].isNIL:
-      errors.add "requires component $#" % allComponents[required_comp].name
+        errors.add "Requires component $#" % allComponents[required_comp].name
 
-  result.validType = true
-  if errors.len > 0:
-    result.validType = false
+  result.validType = errors.len == 0
+  if not result.validType:
     result.whatsTheProblem = errors.join(", ")
 
 proc isValid* (ty: PTypeInfo): bool {.inline.} = ty.validType
