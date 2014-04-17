@@ -11,7 +11,9 @@ proc bb* (x, y, w, h: float): TBB {.
   inline.} = (x,y,w,h) 
 
 proc right* (a: TBB): float {.inline.} = a.left + a.width
+proc `right=`*(a:var TBB; x:float){.inline.}= a.width = x - a.left
 proc bottom*(a: TBB): float {.inline.} = a.top + a.height
+proc `bottom=`*(a:var TBB; y:float){.inline.} = a.height = y - a.top
 proc area*  (a: TBB): float {.inline.} = a.width * a.height
 
 proc unionArea* (a, b: TBB): float {.inline.} = 
