@@ -18,16 +18,20 @@ proc `$`* [T] (some: TMaybe[T]): string =
   if some: result = $some.val
   else: result = "Nothing"
 
-#also since we have mutability we should be able to do these
-proc assign*[T] (some: var TMaybe[T]; val: T){.inline.}= 
-  some.val = val
-  when compiles(isNil(val)):
-    some.has = not isNil(val)
-  else:
-    some.has = true
-proc unset* [T] (some: var TMaybe[T]){.inline.} = 
-  reset some.val
-  some.has = false
+template `?`* (T:typedesc): typedesc = TMaybe[T]
+  #shortcut for maybe types: ?int #=> TMaybe[int]
+
+when false:
+  #also since we have mutability we should be able to do these
+  proc assign*[T] (some: var TMaybe[T]; val: T){.inline.}= 
+    some.val = val
+    when compiles(isNil(val)):
+      some.has = not isNil(val)
+    else:
+      some.has = true
+  proc unset* [T] (some: var TMaybe[T]){.inline.} = 
+    reset some.val
+    some.has = false
 
 
 when isMainModule:
