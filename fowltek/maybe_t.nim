@@ -29,18 +29,6 @@ proc `or`* [T] (some:TMaybe[T]; right:T): T {.inline.} =
 
 
 
-let
-  a = just 3
-  b = just 2
-  c = nothing[int]()
-
-template echoCode(xpr):stmt =
-  echo astToStr(xpr),": ", xpr
-
-echoCode a or c or 5 == 3
-echoCode c or 1      == 1
-echoCode c or b      == just(2)
-
 
 
 
@@ -81,6 +69,18 @@ when isMainModule:
   var su = 32
   ## fatal error because int has no isNil()
   #echo(maybe(su))
-  
-  
+    
+  block:
+    let
+      a = just 3
+      b = just 2
+      c = nothing[int]()
+
+    template echoCode(xpr):stmt =
+      echo astToStr(xpr),": ", xpr
+
+    echoCode a or c or 5 == 3
+    echoCode c or 1      == 1
+    echoCode c or b      == just(2)
+
   
