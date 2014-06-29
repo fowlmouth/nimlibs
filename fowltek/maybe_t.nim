@@ -21,6 +21,30 @@ proc `$`* [T] (some: TMaybe[T]): string =
 template `?`* (T:typedesc): typedesc = TMaybe[T]
   #shortcut for maybe types: ?int #=> TMaybe[int]
 
+proc `or`* [T] (a,b: TMaybe[T]): TMaybe[T] {.inline.} =
+  if a.has: a else: b
+
+proc `or`* [T] (some:TMaybe[T]; right:T): T {.inline.} =
+  if some.has: some.val else: right
+
+
+
+let
+  a = just 3
+  b = just 2
+  c = nothing[int]()
+
+template echoCode(xpr):stmt =
+  echo astToStr(xpr),": ", xpr
+
+echoCode a or c or 5 == 3
+echoCode c or 1      == 1
+echoCode c or b      == just(2)
+
+
+
+
+
 when false:
   #also since we have mutability we should be able to do these
   proc assign*[T] (some: var TMaybe[T]; val: T){.inline.}= 
