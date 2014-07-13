@@ -21,12 +21,18 @@ proc `$`* [T] (some: TMaybe[T]): string =
 template `?`* (T:typedesc): typedesc = TMaybe[T]
   #shortcut for maybe types: ?int #=> TMaybe[int]
 
-proc `or`* [T] (a,b: TMaybe[T]): TMaybe[T] {.inline.} =
+template `or`* [T] (a,b: TMaybe[T]): TMaybe[T] =
   if a.has: a else: b
 
-proc `or`* [T] (some:TMaybe[T]; right:T): T {.inline.} =
+template `or`* [T] (some:TMaybe[T]; right:T): T =
   if some.has: some.val else: right
 
+
+template `.?` [T] (a:TMaybe[T]; b): expr =
+  ## maybe-access operator
+  ## var my = just(TFoo(x: 1))
+  ## my.?x #=> just(1)
+  if a.has: just(a.val.b) else: nothing[type(a.val.b)]()
 
 
 
@@ -53,14 +59,6 @@ when isMainModule:
   else:
     echo "s is nothing"
   
-  s.assign "Foo"
-  if s: echo s.val
-  
-  s.unset
-  if s: echo s.val
-  else: echo "good"
-  
-  
   var x = Maybe("fux")
   if x: echo "x: ", x.val
   x = Maybe[string](nil)
@@ -83,4 +81,30 @@ when isMainModule:
     echoCode c or 1      == 1
     echoCode c or b      == just(2)
 
+  type
+    TFoo = object
+      zz: int
+
+  proc zoo (some:TFoo): int =
+    42
+
+  template ec (xpr): expr =
+    astToStr(xpr)&" #=> "&($ xpr)
+
+  block:
+    var x = just(TFoo(zz: 101))
+    echo "should be 42: ", ec(x.?zoo)
+    echo "should be 101: ", ec(x.?zz)
+
+    x = nothing[TFoo]()
+    echo "should be Nothing: ", ec(x.?zz)
+
+    let foo = x or TFoo(zz:100)
+    echo "should be 100: ", ec(foo.zz)
+
   
+  proc test (): TMaybe[TFoo] = 
+    echo "test() called"
+    return just(TFoo(zz:33))
+  echo ec(just(TFoo()) or test())
+  echo ec(nothing[TFoo]() or nothing[TFoo]() or test())
