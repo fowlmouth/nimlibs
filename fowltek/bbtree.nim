@@ -256,7 +256,7 @@ when isMainModule:
         case k
         of K_SPACE:
           #insert_a_box()
-        
+          discard
         else:nil
         
       else:nil

@@ -59,7 +59,7 @@ proc divide* [T](node: PNode[T]) =
     bounds_half_w, bounds_half_h  ))
 
 
-proc isPartitioned* [T](node: PNode[T]): Bool {.
+proc isPartitioned* [T](node: PNode[T]): bool {.
   inline.} = not node.nodes[0.TCorner].isNil
 
 proc insert* [T] (node: PNode[T]; item: TItem[T] ) =
