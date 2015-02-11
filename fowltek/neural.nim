@@ -4,15 +4,33 @@ import strutils, json
 randomize()
 
 type
+  ActivationFunction* = object
+    fn*, deriv*: proc(value:float):float{.nimcall.}
+
   NeuralNet* = ref object
     layerSizes*: seq[int]
     outputs: seq[seq[float]] #outputs
     deltas:  seq[seq[float]] #error values
     weights, previousWeights: seq[seq[seq[float]]]
     learningRate, momentum: float
+    activationf: ActivationFunction
 
   TTrainingData* = tuple[inputs, target: seq[float]]
 
+let
+  sigmoid* = ActivationFunction(
+    fn: proc(value:float):float = 1 / (1 + exp(-value)),
+    deriv: proc(value:float):float = value * (1 - value)
+  )
+  tan* = ActivationFunction(
+    fn: proc(v:float):float = math.tanh(v),
+    deriv: proc(value:float):float = (;let t = math.tanh(value); 1 - t*t)
+  )
+
+proc activationFunc* (nn: NeuralNet): ActivationFunction = 
+  nn.activationf
+proc `activationFunc=`* (nn: NeuralNet, af: ActivationFunction) =
+  nn.activationf = af
 
 proc numLayers* (nn: NeuralNet): int = nn.layerSizes.len
 proc numInputs* (nn: NeuralNet): int = nn.layerSizes[0]
@@ -30,7 +48,8 @@ proc copy* (nn: NeuralNet): NeuralNet =
 
 proc newNeuralNet* (layers: openarray[int]): NeuralNet =
   result = NeuralNet(
-    layerSizes: @layers
+    layerSizes: @layers,
+    activationf: sigmoid
   )
   
   let layerCount = result.numLayers
@@ -64,8 +83,6 @@ proc prepareForTraining* (nn: NeuralNet; learningRate, momentum: float) =
       for k in 0 .. < nn.layersizes[i - 1] + 1:
         nn.weights[i][j][k] = random(1.0)
 
-proc sigmoid (f: float): float {.inline.}=
-  1 / (1 + exp(-f))
 
 proc feed* (nn: NeuralNet; input: openarray[float]) =
   #assign inputs
@@ -78,7 +95,7 @@ proc feed* (nn: NeuralNet; input: openarray[float]) =
       for k in 0 .. < nn.layerSizes[i - 1]:
         sum += nn.outputs[i - 1][k] * nn.weights[i][j][k]
       sum += nn.weights[i][j][nn.layerSizes[i - 1]]
-      nn.outputs[i][j] = sigmoid(sum)
+      nn.outputs[i][j] = nn.activationf.fn(sum)
 
 
 proc backProp* (nn: NeuralNet; input, target: openarray[float]) =
@@ -95,7 +112,8 @@ proc backProp* (nn: NeuralNet; input, target: openarray[float]) =
     
   for i in 0 .. < nn.numOutputs:
     nn.deltas[lastLayer][i] = 
-      nn.outputs[lastLayer][i] * (1.0 - nn.outputs[lastLayer][i]) * (target[i] - nn.outputs[lastLayer][i])
+      nn.activationf.deriv(nn.outputs[lastLayer][i]) * 
+      (target[i] - nn.outputs[lastLayer][i])
 
   # find deltas for hidden layer
   for i in countdown(numLayers - 2, 1):
@@ -104,7 +122,8 @@ proc backProp* (nn: NeuralNet; input, target: openarray[float]) =
       for k in 0 .. < nn.layerSizes[i+1]:
         sum += nn.deltas[i+1][k] * nn.weights[i+1][k][j]
       nn.deltas[i][j] = 
-        nn.outputs[i][j] * (1.0 - nn.outputs[i][j]) * sum
+        nn.activationf.deriv(nn.outputs[i][j]) * sum
+      #  nn.outputs[i][j] * (1.0 - nn.outputs[i][j]) * sum
 
   # apply momentum
   if nn.momentum != 0:
@@ -169,7 +188,7 @@ proc train* (nn: NeuralNet;
 
 
 
-proc toFloat (f: PJsonNode): float =
+proc toFloat* (f: PJsonNode): float =
   case f.kind
   of JInt:
     return f.num.float
@@ -185,7 +204,7 @@ proc getFloat (obj: PJsonNode; field: string; default = 0.0): float =
   else:
     result = default
 
-proc toInt (i: PJsonNode): int =
+proc toInt* (i: PJsonNode): int =
   case i.kind
   of JInt:
     return i.num.int
@@ -201,6 +220,15 @@ proc getInt (obj: PJsonNode; field: string; default = 0): int =
   else: 
     result = default
 
+proc setActivationFunc* (net:NeuralNet; fn:string) =
+  case fn.toLower
+  of "tanh":
+    net.activationf = neural.tan
+  of "logistic","sigmoid":
+    net.activationf = neural.sigmoid
+  else:
+    raise newException(ValueError, "activation function not recognized: "& fn)
+
 proc loadNeuralNet* (data:PJsonNode): NeuralNet =
   ## loads a neural net defined in JSON. see the bottom of the page for an example
   ## if there is a "training" section the net will be trained before being returned.
@@ -210,6 +238,9 @@ proc loadNeuralNet* (data:PJsonNode): NeuralNet =
   
   result = newNeuralNet(layers)
   
+  if data.hasKey("activation_function"):
+    result.setActivationFunc data["activation_function"].str
+
   if data.hasKey("weights"):
     for layer in 1 .. < result.numLayers:
       for id1 in 0 .. < data["weights"][layer-1].len:
