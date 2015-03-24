@@ -6,4 +6,4 @@ description = "Assorted wrappers and reusable libraries."
 license = "MIT"
 
 [Deps]
-Requires = "nimrod >= 0.9.3"
+Requires = "nim >= 0.9.3"
