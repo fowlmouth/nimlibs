@@ -1,4 +1,4 @@
-This is a collection of useful Nimrod modules. The theme is Game Development.
+This is a collection of useful Nim modules. The theme is Game Development.
 Examples of usage can usually be found at the end of the module's source or in
 the `examples/` directory
 
