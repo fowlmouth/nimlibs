@@ -25,6 +25,7 @@ this license.
 
 ### Physics
 * Bullet - another high performance 3D physics library. This wrapper may not be complete, it is based off Bullet's C-API which is limited.
+* fowltek/verlet - implementation of verlet physics 
 
 ### Other
 * FANN (Fast Artificial Neural Net http://leenissen.dk/)
