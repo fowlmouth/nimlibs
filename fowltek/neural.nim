@@ -1,30 +1,37 @@
+# available -define:
+#   NeuralFloat32 - makes float type used be float32
 
 from math import exp, randomize, random
 import strutils, json
 randomize()
 
+when defined(NeuralFloat32):
+  type NeuralFloat* = float32
+else:
+  type NeuralFloat* = float64
+
 type
   ActivationFunction* = object
-    fn*, deriv*: proc(value:float):float{.nimcall.}
+    fn*, deriv*: proc(value:NeuralFloat):NeuralFloat{.nimcall.}
 
   NeuralNet* = ref object
     layerSizes*: seq[int]
-    outputs: seq[seq[float]] #outputs
-    deltas:  seq[seq[float]] #error values
-    weights, previousWeights: seq[seq[seq[float]]]
-    learningRate, momentum: float
+    outputs: seq[seq[NeuralFloat]] #outputs
+    deltas:  seq[seq[NeuralFloat]] #error values
+    weights, previousWeights: seq[seq[seq[NeuralFloat]]]
+    learningRate, momentum: NeuralFloat
     activationf: ActivationFunction
 
-  TTrainingData* = tuple[inputs, target: seq[float]]
+  TTrainingData* = tuple[inputs, target: seq[NeuralFloat]]
 
 let
   sigmoid* = ActivationFunction(
-    fn: proc(value:float):float = 1 / (1 + exp(-value)),
-    deriv: proc(value:float):float = value * (1 - value)
+    fn: proc(value:NeuralFloat):NeuralFloat = 1 / (1 + exp(-value)),
+    deriv: proc(value:NeuralFloat):NeuralFloat = value * (1 - value)
   )
   tan* = ActivationFunction(
-    fn: proc(v:float):float = math.tanh(v),
-    deriv: proc(value:float):float = (;let t = math.tanh(value); 1 - t*t)
+    fn: proc(v:NeuralFloat):NeuralFloat = math.tanh(v),
+    deriv: proc(value:NeuralFloat):NeuralFloat = (;let t = math.tanh(value); 1 - t*t)
   )
 
 proc activationFunc* (nn: NeuralNet): ActivationFunction = 
@@ -36,8 +43,8 @@ proc numLayers* (nn: NeuralNet): int = nn.layerSizes.len
 proc numInputs* (nn: NeuralNet): int = nn.layerSizes[0]
 proc numOutputs*(nn: NeuralNet): int = nn.layerSizes[< nn.layerSizes.len]
 
-proc getOutputs*(nn: NeuralNet): seq[float] = nn.outputs[< nn.numLayers]
-proc getOutput* (nn: NeuralNet; idx: int): float = nn.outputs[<nn.numLayers][idx]
+proc getOutputs*(nn: NeuralNet): seq[NeuralFloat] = nn.outputs[< nn.numLayers]
+proc getOutput* (nn: NeuralNet; idx: int): NeuralFloat = nn.outputs[<nn.numLayers][idx]
 
 proc copy* (nn: NeuralNet): NeuralNet =
   NeuralNet(
@@ -63,7 +70,7 @@ proc newNeuralNet* (layers: openarray[int]): NeuralNet =
       for j in 0 .. <L:
         newSeq result.weights[i][j], layers[i - 1]+1
 
-proc prepareForTraining* (nn: NeuralNet; learningRate, momentum: float) =
+proc prepareForTraining* (nn: NeuralNet; learningRate, momentum: NeuralFloat) =
   nn.learningRate = learningRate
   nn.momentum = momentum
   
@@ -84,7 +91,7 @@ proc prepareForTraining* (nn: NeuralNet; learningRate, momentum: float) =
         nn.weights[i][j][k] = random(1.0)
 
 
-proc feed* (nn: NeuralNet; input: openarray[float]) =
+proc feed* (nn: NeuralNet; input: openarray[NeuralFloat]) =
   #assign inputs
   for i in 0 .. < nn.numInputs:
     nn.outputs[0][i] = input[i]
@@ -98,7 +105,7 @@ proc feed* (nn: NeuralNet; input: openarray[float]) =
       nn.outputs[i][j] = nn.activationf.fn(sum)
 
 
-proc backProp* (nn: NeuralNet; input, target: openarray[float]) =
+proc backProp* (nn: NeuralNet; input, target: openarray[NeuralFloat]) =
   assert target.len == nn.numOutputs
   assert input.len == nn.numInputs
   
@@ -147,20 +154,20 @@ proc backProp* (nn: NeuralNet; input, target: openarray[float]) =
       nn.weights[i][j][nn.layerSizes[i-1]] +=
         nn.previousWeights[i][j][nn.layerSizes[i-1]]
 
-proc meanSquareError (nn: NeuralNet; target: openarray[float]): float =
+proc meanSquareError (nn: NeuralNet; target: openarray[NeuralFloat]): NeuralFloat =
   for i in 0 .. < nn.numOutputs:
     result += 
       (target[i] - nn.getOutput(i)) * (target[i] - nn.getoutput(i))
-  result /= 2.0
+  result = result / 2.0
 
 
 
-proc ff(f: float; prec = 2): string = formatFloat(f, ffDecimal, prec)
+proc ff(f: NeuralFloat; prec = 2): string = formatFloat(f, ffDecimal, prec)
 
 
 proc train* (nn: NeuralNet; 
       data: openarray[TTrainingData]; 
-      numIters = 1_000_000; threshold = 0.00001) =
+      numIters = 1_000_000; threshold = 0.000001) =
   for i in 0 .. <numIters:
     var 
       correct = 0
@@ -183,22 +190,22 @@ proc train* (nn: NeuralNet;
 
     when defined(Debug):
       if i mod int(numIters / 10) == 0:
-        avg_mse /= data.len.float
+        avg_mse /= data.len.NeuralFloat
         echo "MSE: ", ff(avg_mse, 8)
 
 
 
-proc toFloat* (f: PJsonNode): float =
+proc toFloat* (f: PJsonNode): NeuralFloat =
   case f.kind
   of JInt:
-    return f.num.float
+    return f.num.NeuralFloat
   of JFloat:
-    return f.fnum.float
+    return f.fnum.NeuralFloat
   of JString:
     return f.str.parseFloat
   else:
     discard
-proc getFloat (obj: PJsonNode; field: string; default = 0.0): float =
+proc getFloat (obj: PJsonNode; field: string; default = 0.0): NeuralFloat =
   if obj.hasKey(field):
     result = obj[field].toFloat    
   else:
@@ -307,14 +314,25 @@ when isMainModule:
   let sets = ["or", "xor", "and", "nand", "nor", "xnor"]
 
   let training_data = {
-    "or": %{
-      "layers": %[%2,%1],
-      "training": %{
-        "set": %[
-          %[%[%0,%1], %[%1]],
-          %[%[%1,%0], %[%1]],
-          %[%[%0,%0], %[%0]],
-          %[%[%1,%1], %[%1]]
+    "or": %*{
+      "layers": [2,1],
+      "training": {
+        "set": [
+          [[0,1], [1]],
+          [[1,0], [1]],
+          [[0,1], [1]],
+          [[0,0], [0]]
+        ]
+      }
+    },
+    "xor": %*{
+      "layers": [2,2,1],
+      "training": {
+        "set": [
+          [[0,1], [1]],
+          [[1,0], [1]],
+          [[1,1], [0]],
+          [[0,0], [0]]
         ]
       }
     }
@@ -326,7 +344,7 @@ when isMainModule:
     var net = loadNeuralNet(dat)
     echo "finished in ", formatFloat(epochTime() - start, ffDecimal, 4), "seconds"
 
-    var inputs = newseq[float](net.numInputs)
+    var inputs = newseq[NeuralFloat](net.numInputs)
     for s in dat["training"]["set"]:
       for idx,f in s[0].elems.pairs:
         inputs[idx] = f.toFloat
